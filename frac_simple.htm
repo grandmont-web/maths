@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <title>分數乘法 - 完美排版版</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <style>
+        /* --- 基礎設定 --- */
+        @page { size: A4 portrait; margin: 10mm; }
+        
+        body { 
+            font-family: "Microsoft JhengHei", "Heiti TC", sans-serif; 
+            margin: 0; padding: 0; 
+            color: #333; 
+            background: #f4f4f4; 
+        }
+        
+        /* --- 控制面板 --- */
+        .no-print { 
+            text-align: center; 
+            padding: 15px; 
+            background: #fff; 
+            border-bottom: 2px solid #8e44ad; 
+            margin-bottom: 10px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); 
+        }
+        button { 
+            padding: 8px 15px; font-size: 14px; cursor: pointer; 
+            border: none; border-radius: 4px; margin: 0 3px; 
+            color: white; transition: 0.3s; 
+        }
+        .btn-gen { background-color: #34495e; }
+        .btn-ans { background-color: #e67e22; }
+        .btn-pdf { background-color: #e74c3c; } 
+        .btn-half { background-color: #8e44ad; } 
+        .btn-print { background-color: #27ae60; }
+        button:hover { opacity: 0.9; }
+
+        /* --- 工作紙主體 --- */
+        .worksheet { 
+            width: 190mm; 
+            margin: 0 auto; 
+            padding: 10px 15px; 
+            background: white; 
+            box-sizing: border-box; 
+            min-height: 270mm;
+            position: relative;
+        }
+        
+        /* --- 標題區域 --- */
+        .header { 
+            text-align: center; 
+            margin-bottom: 35px; /* 標題與下方的距離 */
+        }
+        .header h1 { font-size: 24px; margin: 0 0 5px 0; letter-spacing: 2px; font-weight: bold; }
+        
+        .info-bar { 
+            display: flex; justify-content: space-between; 
+            margin-bottom: 15px; font-size: 14px; 
+            border-bottom: 2px solid #333; padding-bottom: 5px; 
+        }
+        
+        .question-list { display: flex; flex-direction: column; }
+        
+        /* 每一題的容器 */
+        .question-item { 
+            display: flex; align-items: center; 
+            height: 90px; page-break-inside: avoid; 
+        }
+        .q-num { width: 25px; font-size: 16px; font-weight: bold; }
+        .question-part { display: flex; align-items: center; flex-shrink: 0; }
+        
+        .answer-container { 
+            flex-grow: 1; display: flex; align-items: center;
+            margin-left: 10px; height: 100%; overflow: visible;
+        }
+
+        .answer-line { 
+            border-bottom: 1px solid #000; width: 80px; height: 1px; margin-top: 50px; 
+        }
+
+        .process-display { display: none; align-items: center; white-space: nowrap; }
+
+        .fraction { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 5px; }
+        .num { border-bottom: 1.2px solid black; padding: 1px 3px; text-align: center; width: 100%; min-width: 22px; position: relative; font-size: 18px; }
+        .den { padding: 1px 3px; text-align: center; width: 100%; min-width: 22px; position: relative; font-size: 18px; }
+        .symbol { margin: 0 3px; font-size: 16px; font-weight: bold; }
+        
+        .cancel-wrapper { position: relative; display: inline-block; }
+        .original { color: #aaa; font-size: 18px; display: inline-block; position: relative; }
+        .original::after {
+            content: ''; position: absolute; top: 50%; left: -10%; width: 120%; height: 1.2px; 
+            background-color: #888; transform: translateY(-50%) rotate(-45deg); pointer-events: none;
+        }
+        .new-val { position: absolute; font-weight: bold; font-size: 12px; line-height: 1; }
+        .num .new-val { top: -9px; right: -10px; }
+        .den .new-val { bottom: -7px; right: -10px; }
+        
+        .final-ans-part { margin-left: 8px; display: flex; align-items: center; font-size: 16px; color: #333; }
+        .whole-num { font-size: 18px; margin-right: 2px; font-weight: bold;}
+        .sep-sign { margin: 0 5px; color: #999; font-weight: normal; font-size: 14px; }
+        .eq-green { color: #27ae60; margin: 0 5px; font-weight: bold; font-size: 18px; }
+
+        .show-ans .answer-line { display: none; } 
+        .show-ans .process-display { display: flex; } 
+
+        @media print {
+            @page { size: portrait; }
+            .no-print { display: none; }
+            body { background: white; }
+            .worksheet { margin: 0; width: 100%; box-shadow: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="no-print">
+        <h1>分數乘法生成器</h1>
+        <button class="btn-gen" onclick="generate()">🔄 生成新題目</button>
+        <button class="btn-ans" onclick="toggleAnswers()">👁️ 顯示/隱藏詳解</button>
+        <button class="btn-pdf" onclick="downloadPDF()">⬇️ 下載 A4 (直向)</button>
+        <button class="btn-half" onclick="downloadSplitPDF()">⬇️ 下載 PDF (半頁雙份)</button>
+        <button class="btn-print" onclick="window.print()">🖨️ 直接列印</button>
+    </div>
+
+    <div class="worksheet" id="content-to-pdf">
+        <div class="header">
+            <h1 id="title-text">分數連乘-練習</h1>
+        </div>
+        
+        <div class="info-bar">
+            <span>班別：__________</span>
+            <span>姓名：______________________________</span>
+            <span>日期：____________________</span>
+        </div>
+        
+        <div id="quiz-container" class="question-list"></div>
+    </div>
+
+    <script>
+        const PALETTE = ['#e74c3c', '#2980b9', '#27ae60', '#8e44ad', '#d35400'];
+
+        function getGCD(a, b) { return b === 0 ? a : getGCD(b, a % b); }
+        function simplify(num, den) {
+            const common = getGCD(num, den);
+            return [num / common, den / common];
+        }
+        function getRandom(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+        function renderSimpleFraction(n, d) {
+            return `<div class="fraction"><div class="num">${n}</div><div class="den">${d}</div></div>`;
+        }
+
+        function renderProcessNum(numObj) {
+            if (numObj.val === numObj.original) {
+                return `<span style="font-weight:bold; font-size: 18px;">${numObj.val}</span>`;
+            } else {
+                return `<div class="cancel-wrapper"><span class="original">${numObj.original}</span><span class="new-val" style="color: ${numObj.color}">${numObj.val}</span></div>`;
+            }
+        }
+
+        function simulateCancellation(nList, dList) {
+            let ns = [...nList], ds = [...dList], cuts = 0;
+            for (let i = 0; i < 3; i++) {
+                for (let j = 0; j < 3; j++) {
+                    let common = getGCD(ns[i], ds[j]);
+                    if (common > 1) { ns[i] /= common; ds[j] /= common; cuts++; }
+                }
+            }
+            return cuts;
+        }
+
+        function createQuestion(index) {
+            let f1, f2, f3;
+            let isValid = false;
+            let attempts = 0;
+            let richFactors = [4, 6, 8, 9, 10, 12, 14, 15, 16, 18, 20, 21, 24, 25, 27, 30, 32, 35, 36];
+            let remainders = [1, 2, 3, 4, 5, 6, 7];
+
+            while (!isValid && attempts < 2000) {
+                attempts++;
+                let bridge1 = richFactors[getRandom(0, richFactors.length-1)];
+                let bridge2 = richFactors[getRandom(0, richFactors.length-1)];
+                let bridge3 = richFactors[getRandom(0, richFactors.length-1)];
+                let rawF1_n = bridge1 * remainders[getRandom(0, remainders.length-1)]; 
+                let rawF1_d = bridge2 * remainders[getRandom(0, remainders.length-1)];
+                let rawF2_n = bridge2 * remainders[getRandom(0, remainders.length-1)]; 
+                let rawF2_d = bridge3 * remainders[getRandom(0, remainders.length-1)];
+                let rawF3_n = bridge3 * remainders[getRandom(0, remainders.length-1)]; 
+                let rawF3_d = bridge1 * remainders[getRandom(0, remainders.length-1)];
+
+                f1 = simplify(rawF1_n, rawF1_d); f2 = simplify(rawF2_n, rawF2_d); f3 = simplify(rawF3_n, rawF3_d);
+
+                if (f1[1]>1 && f2[1]>1 && f3[1]>1 && f1[0]<120 && f1[1]<120 && f2[0]<120 && f2[1]<120 && f3[0]<120 && f3[1]<120) {
+                    let cuts = simulateCancellation([f1[0],f2[0],f3[0]], [f1[1],f2[1],f3[1]]);
+                    let finalAns = simplify(f1[0]*f2[0]*f3[0], f1[1]*f2[1]*f3[1]);
+                    if (cuts >= 3 && (!(finalAns[0]===1 && finalAns[1]===1) || Math.random()>0.8)) isValid = true;
+                }
+            }
+
+            let nums = [{val:f1[0], original:f1[0], color:'#333'}, {val:f2[0], original:f2[0], color:'#333'}, {val:f3[0], original:f3[0], color:'#333'}];
+            let dens = [{val:f1[1], original:f1[1], color:'#333'}, {val:f2[1], original:f2[1], color:'#333'}, {val:f3[1], original:f3[1], color:'#333'}];
+
+            let colorIdx = 0;
+            for (let i = 0; i < 3; i++) {
+                for (let j = 0; j < 3; j++) {
+                    let common = getGCD(nums[i].val, dens[j].val);
+                    if (common > 1) {
+                        nums[i].val /= common; dens[j].val /= common;
+                        let c = PALETTE[colorIdx % PALETTE.length];
+                        nums[i].color = c; dens[j].color = c;
+                        colorIdx++;
+                    }
+                }
+            }
+
+            let finalNum = nums[0].val * nums[1].val * nums[2].val;
+            let finalDen = dens[0].val * dens[1].val * dens[2].val;
+            let ans = simplify(finalNum, finalDen);
+
+            let processHtml = `
+                <div class="fraction"><div class="num">${renderProcessNum(nums[0])}</div><div class="den">${renderProcessNum(dens[0])}</div></div>
+                <div class="symbol">×</div>
+                <div class="fraction"><div class="num">${renderProcessNum(nums[1])}</div><div class="den">${renderProcessNum(dens[1])}</div></div>
+                <div class="symbol">×</div>
+                <div class="fraction"><div class="num">${renderProcessNum(nums[2])}</div><div class="den">${renderProcessNum(dens[2])}</div></div>
+                <div class="eq-green">=</div>
+            `;
+
+            let resultHtml = "";
+            if (ans[1] === 1) {
+                resultHtml = `<span class="whole-num">${ans[0]}</span>`;
+            } else if (ans[0] > ans[1]) {
+                let w = Math.floor(ans[0]/ans[1]), r = ans[0]%ans[1];
+                resultHtml = `<div class="fraction"><div class="num">${ans[0]}</div><div class="den">${ans[1]}</div></div><span class="sep-sign">或</span><span class="whole-num">${w}</span><div class="fraction"><div class="num">${r}</div><div class="den">${ans[1]}</div></div>`;
+            } else {
+                resultHtml = `<div class="fraction"><div class="num">${ans[0]}</div><div class="den">${ans[1]}</div></div>`;
+            }
+
+            return `
+                <div class="question-item">
+                    <div class="q-num">${index}.</div>
+                    <div class="question-part">
+                        ${renderSimpleFraction(f1[0], f1[1])} <div class="symbol">×</div>
+                        ${renderSimpleFraction(f2[0], f2[1])} <div class="symbol">×</div>
+                        ${renderSimpleFraction(f3[0], f3[1])} <div class="symbol">=</div>
+                    </div>
+                    <div class="answer-container">
+                        <div class="answer-line"></div>
+                        <div class="process-display">${processHtml}<div class="final-ans-part">${resultHtml}</div></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function generate() {
+            document.body.classList.remove('show-ans');
+            document.getElementById('title-text').innerText = "分數連乘-練習";
+            const container = document.getElementById('quiz-container');
+            let html = '';
+            for (let i = 1; i <= 10; i++) html += createQuestion(i);
+            container.innerHTML = html;
+        }
+
+        function toggleAnswers() {
+            document.body.classList.toggle('show-ans');
+            const isShowing = document.body.classList.contains('show-ans');
+            document.getElementById('title-text').innerText = isShowing ? "分數連乘 - 詳細解答卷" : "分數連乘-練習";
+        }
+
+        function downloadPDF() {
+            const element = document.getElementById('content-to-pdf');
+            const isShowing = document.body.classList.contains('show-ans');
+            const fileName = isShowing ? '分數連乘_詳細解答.pdf' : '分數連乘-練習.pdf';
+            html2pdf().set({
+                margin: 10,
+                filename: fileName,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            }).from(element).save();
+        }
+
+        function downloadSplitPDF() {
+            const originalContent = document.getElementById('content-to-pdf').innerHTML;
+            const isShowing = document.body.classList.contains('show-ans');
+            const fileName = isShowing ? '分數連乘_雙份解答(橫向).pdf' : '分數連乘_雙份練習(橫向).pdf';
+            const styles = document.getElementsByTagName('style')[0].innerHTML;
+
+            const win = window.open('', '_blank');
+            win.document.write(`
+                <html>
+                <head>
+                    <title>Generating PDF...</title>
+                    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"><\/script>
+                    <style>
+                        ${styles}
+                        body { background: white; margin: 0; padding: 0; display: flex; justify-content: center; }
+                        .print-wrapper { width: 297mm; height: 210mm; display: flex; overflow: hidden; }
+                        .half-col { width: 148.5mm; height: 100%; display: flex; justify-content: center; padding-top: 5mm; position: relative; border-right: 1px dashed #ccc; }
+                        .half-col:last-child { border-right: none; }
+                        .scaler { width: 190mm; transform: scale(0.75); transform-origin: top center; }
+                        .worksheet { margin: 0 !important; box-shadow: none !important; }
+                    </style>
+                </head>
+                <body>
+                    <div id="print-area" class="print-wrapper">
+                        <div class="half-col"><div class="scaler"><div class="worksheet ${isShowing ? 'show-ans' : ''}">${originalContent}</div></div></div>
+                        <div class="half-col"><div class="scaler"><div class="worksheet ${isShowing ? 'show-ans' : ''}">${originalContent}</div></div></div>
+                    </div>
+                    <script>
+                        window.onload = function() {
+                            setTimeout(function() {
+                                const element = document.getElementById('print-area');
+                                const opt = {
+                                    margin: 0,
+                                    filename: '${fileName}',
+                                    image: { type: 'jpeg', quality: 0.98 },
+                                    html2canvas: { scale: 2, useCORS: true },
+                                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+                                };
+                                html2pdf().set(opt).from(element).save().then(function(){ window.close(); });
+                            }, 500);
+                        };
+                    <\/script>
+                </body>
+                </html>
+            `);
+            win.document.close();
+        }
+
+        window.onload = generate;
+    </script>
+</body>
+</html>
