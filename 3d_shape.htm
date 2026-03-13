@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>神奇立體圖形實驗室 - 小二數學</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Noto Sans TC', sans-serif; background-color: #f0f9ff; }
+        #canvas-container { width: 100vw; height: 100vh; display: block; }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .btn-shape { 
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); 
+            border: 2px solid transparent; 
+            background: white;
+            color: #475569;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        .btn-shape:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
+            border-color: #bfdbfe;
+            color: #3b82f6;
+        }
+        .btn-shape.active { 
+            border-color: #3b82f6; 
+            background-color: #eff6ff; 
+            color: #1d4ed8; 
+            font-weight: bold;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+        }
+        
+        #loading {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #fff; display: flex; justify-content: center; align-items: center;
+            z-index: 9999; font-size: 1.5rem; color: #3b82f6; transition: opacity 0.5s;
+        }
+
+        .feature-checkbox { accent-color: #3b82f6; transform: scale(1.1); cursor: pointer; }
+
+        .btn-unfold {
+            background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+            color: white;
+            box-shadow: 0 4px 10px rgba(139, 92, 246, 0.3);
+            transition: all 0.3s ease;
+        }
+        .btn-unfold:hover { transform: scale(1.02); box-shadow: 0 6px 15px rgba(139, 92, 246, 0.4); }
+        .btn-unfold.active { background: linear-gradient(135deg, #10b981 0%, #059669 100%); box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3); }
+        .btn-unfold:disabled {
+            background: #cbd5e1;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        .btn-slice {
+            padding: 4px 8px;
+            font-size: 0.85rem;
+            border-radius: 6px;
+            background-color: white;
+            border: 1px solid #fed7aa;
+            color: #9a3412;
+            transition: all 0.2s;
+        }
+        .btn-slice:hover { background-color: #fff7ed; }
+        .btn-slice.active {
+            background-color: #f97316;
+            color: white;
+            border-color: #f97316;
+            font-weight: bold;
+        }
+
+        .stat-badge {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #bbf7d0;
+            border-radius: 6px;
+            padding: 2px 8px;
+            font-size: 0.85rem;
+            color: #166534;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .stat-value { color: #15803d; font-weight: 800; font-size: 1rem; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+
+    <div id="loading">正在準備積木...</div>
+
+    <div class="absolute top-0 left-0 w-full h-full flex flex-col md:flex-row pointer-events-none">
+        <div class="pointer-events-auto w-full md:w-80 bg-white/95 backdrop-blur-md shadow-2xl p-4 flex flex-col overflow-y-auto max-h-[45vh] md:max-h-full z-10 border-r border-white/50">
+            <h1 class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 mb-4 text-center flex items-center justify-center gap-2 drop-shadow-sm">
+                <span>🧊</span> 神奇立體實驗室
+            </h1>
+            
+            <!-- 1. 選擇立體 -->
+            <div class="bg-blue-50/80 p-3 rounded-xl border border-blue-100 mb-3 shadow-sm">
+                <h3 class="font-bold text-blue-800 text-xs mb-2 uppercase tracking-wider flex items-center gap-1">
+                    <span class="bg-blue-200 text-blue-700 px-1.5 py-0.5 rounded text-[10px]">1</span> 選擇立體
+                </h3>
+                <div class="space-y-2">
+                    <div>
+                        <div class="text-[10px] text-blue-400 font-bold mb-1 ml-1">柱體家族</div>
+                        <div class="grid grid-cols-3 gap-1.5">
+                            <button class="btn-shape p-2 rounded-lg" onclick="selectShape('cylinder')">圓柱</button>
+                            <button class="btn-shape p-2 rounded-lg" onclick="selectShape('triPrism')">三角柱</button>
+                            <button class="btn-shape p-2 rounded-lg" onclick="selectShape('rectPrism')">四角柱</button>
+                            <button class="btn-shape p-2 rounded-lg" onclick="selectShape('pentPrism')">五角柱</button>
+                            <button class="btn-shape p-2 rounded-lg" onclick="selectShape('hexPrism')">六角柱</button>
+                            <button class="btn-shape p-2 rounded-lg" onclick="selectShape('heptPrism')">七角柱</button>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-blue-400 font-bold mb-1 ml-1">錐體家族</div>
+                        <div class="grid grid-cols-3 gap-1.5">
+                            <button class="btn-shape p-2 rounded-lg" onclick="selectShape('cone')">圓錐</button>
+                            <button class="btn-shape p-2 rounded-lg" onclick="selectShape('triPyramid')">三角錐</button>
+                            <button class="btn-shape p-2 rounded-lg" onclick="selectShape('rectPyramid')">四角錐</button>
+                            <button class="btn-shape p-2 rounded-lg" onclick="selectShape('pentPyramid')">五角錐</button>
+                            <button class="btn-shape p-2 rounded-lg" onclick="selectShape('hexPyramid')">六角錐</button>
+                            <button class="btn-shape p-2 rounded-lg" onclick="selectShape('heptPyramid')">七角錐</button>
+                        </div>
+                    </div>
+                    <div>
+                        <button class="btn-shape w-full p-2 rounded-lg font-bold text-gray-500" onclick="selectShape('sphere')">球體</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. 數據與顯示區 -->
+            <div class="bg-emerald-50/80 p-3 rounded-xl mb-3 border border-emerald-100 shadow-sm">
+                <h2 id="info-title" class="text-center font-bold text-emerald-800 mb-2 border-b border-emerald-200 pb-1 text-sm">圓柱</h2>
+                
+                <div class="flex justify-between mb-3 px-1">
+                    <div class="stat-badge">面 <span id="face-count" class="stat-value">3</span></div>
+                    <div class="stat-badge">棱 <span id="edge-count" class="stat-value">2</span></div>
+                    <div class="stat-badge">頂 <span id="vertex-count" class="stat-value">0</span></div>
+                </div>
+
+                <div class="flex justify-between items-center bg-white/80 p-2 rounded-lg shadow-sm border border-emerald-100">
+                    <label class="flex items-center space-x-1 cursor-pointer select-none hover:bg-emerald-50 p-1 rounded transition">
+                        <input type="checkbox" id="show-faces" class="feature-checkbox" checked onchange="updateVisibility()">
+                        <span class="text-xs font-bold text-gray-700">面</span>
+                    </label>
+                    <label class="flex items-center space-x-1 cursor-pointer select-none hover:bg-emerald-50 p-1 rounded transition">
+                        <input type="checkbox" id="show-edges" class="feature-checkbox" checked onchange="updateVisibility()">
+                        <span class="text-xs font-bold text-gray-700">棱(邊)</span>
+                    </label>
+                    <label class="flex items-center space-x-1 cursor-pointer select-none hover:bg-emerald-50 p-1 rounded transition">
+                        <input type="checkbox" id="show-vertices" class="feature-checkbox" onchange="updateVisibility()">
+                        <span class="text-xs font-bold text-gray-700">頂點</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 3. 截面觀察 -->
+            <div class="bg-orange-50/80 p-3 rounded-xl mb-3 border border-orange-100 shadow-sm">
+                <h3 class="font-bold text-orange-800 text-xs mb-2 uppercase tracking-wider flex items-center gap-1">
+                    <span class="bg-orange-200 text-orange-800 px-1.5 py-0.5 rounded text-[10px]">2</span> 截面觀察
+                </h3>
+                <div class="flex justify-between gap-1.5 mb-2">
+                    <button class="btn-slice active flex-1" onclick="setSliceMode('none')">無</button>
+                    <button class="btn-slice flex-1" onclick="setSliceMode('y')">橫切</button>
+                    <button class="btn-slice flex-1" onclick="setSliceMode('x')">直切</button>
+                    <button class="btn-slice flex-1" onclick="setSliceMode('oblique')">斜切</button>
+                </div>
+                <div id="slice-slider-container" class="hidden px-1 pb-1">
+                    <input type="range" id="slice-slider" min="-2" max="2" step="0.1" value="0" class="w-full h-1.5 bg-orange-200 rounded-lg appearance-none cursor-pointer accent-orange-500">
+                </div>
+            </div>
+
+            <!-- 4. 展開與調整 -->
+            <div class="space-y-3">
+                <button id="unfold-btn" class="btn-unfold w-full py-2.5 rounded-xl font-bold text-sm shadow-md flex items-center justify-center gap-2 transform active:scale-95" onclick="toggleUnfold()">
+                    <span id="unfold-text">展開成摺紙圖</span>
+                </button>
+
+                <div class="flex items-center gap-3 bg-gray-50 p-2.5 rounded-xl border border-gray-200">
+                    <div class="flex-1">
+                        <label class="text-[10px] text-gray-500 font-bold block mb-1 uppercase">高度調整</label>
+                        <input type="range" id="height-slider" min="1" max="5" step="0.1" value="2.5" class="w-full h-1.5 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+                    </div>
+                    <div class="border-l pl-3 border-gray-300">
+                        <label class="flex flex-col items-center cursor-pointer group">
+                            <span class="text-[10px] text-gray-500 font-bold mb-1 uppercase group-hover:text-indigo-600">透視</span>
+                            <input type="checkbox" id="xray-toggle" class="accent-indigo-500 w-4 h-4 cursor-pointer" onchange="toggleTransparency()">
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <script>
+        let scene, camera, renderer, controls;
+        let mainGroup; 
+        let currentShapeType = 'cylinder';
+        let currentHeight = 2.5;
+        let isTransparent = false;
+        let isUnfolded = false;
+        let sliceMode = 'none';
+        let sliceValue = 0;
+        let clipPlane;
+        
+        const baseSize = 1.5;
+        const shapeColor = 0x60a5fa; 
+        const edgeColor = 0x1e3a8a;
+        const vertexColor = 0xff0000;
+        const sectionColor = 0xf97316;
+
+        const shapeData = {
+            'cylinder':    { name: '圓柱', faces: 3, edges: 2, vertices: 0 },
+            'cone':        { name: '圓錐', faces: 2, edges: 1, vertices: 1 },
+            'triPrism':    { name: '三角柱', faces: 5, edges: 9, vertices: 6 },
+            'rectPrism':   { name: '四角柱', faces: 6, edges: 12, vertices: 8 },
+            'pentPrism':   { name: '五角柱', faces: 7, edges: 15, vertices: 10 },
+            'hexPrism':    { name: '六角柱', faces: 8, edges: 18, vertices: 12 },
+            'heptPrism':   { name: '七角柱', faces: 9, edges: 21, vertices: 14 },
+            'triPyramid':  { name: '三角錐', faces: 4, edges: 6, vertices: 4 },
+            'rectPyramid': { name: '四角錐', faces: 5, edges: 8, vertices: 5 },
+            'pentPyramid': { name: '五角錐', faces: 6, edges: 10, vertices: 6 },
+            'hexPyramid':  { name: '六角錐', faces: 7, edges: 12, vertices: 7 },
+            'heptPyramid': { name: '七角錐', faces: 8, edges: 14, vertices: 8 },
+            'sphere':      { name: '球體', faces: 1, edges: 0, vertices: 0 }
+        };
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xf0f9ff);
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.set(6, 6, 9);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.capabilities.logarithmicDepthBuffer = true;
+            renderer.localClippingEnabled = true;
+            
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambientLight);
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(5, 10, 7);
+            scene.add(dirLight);
+            const backLight = new THREE.DirectionalLight(0xffffff, 0.4);
+            backLight.position.set(-5, 5, -5);
+            scene.add(backLight);
+
+            const gridHelper = new THREE.GridHelper(20, 20, 0xcbd5e1, 0xe2e8f0);
+            scene.add(gridHelper);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.autoRotate = true;
+            controls.autoRotateSpeed = 1.0;
+            controls.addEventListener('start', () => { controls.autoRotate = false; });
+
+            clipPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
+
+            mainGroup = new THREE.Group();
+            scene.add(mainGroup);
+
+            updateShape(); 
+            updateInfoPanel('cylinder');
+            document.querySelector("button[onclick=\"selectShape('cylinder')\"]").classList.add('active');
+
+            window.addEventListener('resize', onWindowResize);
+            setTimeout(() => {
+                document.getElementById('loading').style.opacity = '0';
+                setTimeout(() => document.getElementById('loading').remove(), 500);
+            }, 800);
+
+            animate();
+        }
+
+        // --- 工具: 生成正多邊形頂點 ---
+        function getPolygonVertices(n, r) {
+            const vertices = [];
+            // 起始角度：讓Edge 0 (i=0 to i=1) 水平，且位於下方
+            const startAngle = -Math.PI/2 - Math.PI/n;
+            for (let i = 0; i < n; i++) {
+                const theta = startAngle + i * (Math.PI * 2 / n);
+                vertices.push(new THREE.Vector2(r * Math.cos(theta), r * Math.sin(theta)));
+            }
+            return vertices;
+        }
+
+        function createThickEdges(geometry, color) {
+            const edgeGeo = new THREE.EdgesGeometry(geometry, 25); 
+            const positions = edgeGeo.attributes.position.array;
+            const group = new THREE.Group();
+            const mat = new THREE.MeshBasicMaterial({ color: color });
+            const thickness = 0.04;
+
+            for (let i = 0; i < positions.length; i += 6) {
+                const start = new THREE.Vector3(positions[i], positions[i+1], positions[i+2]);
+                const end = new THREE.Vector3(positions[i+3], positions[i+4], positions[i+5]);
+                
+                const path = end.clone().sub(start);
+                const len = path.length();
+                if(len < 0.001) continue;
+
+                const cylinder = new THREE.CylinderGeometry(thickness, thickness, len, 6);
+                cylinder.translate(0, len/2, 0);
+                cylinder.rotateX(Math.PI / 2);
+                
+                const mesh = new THREE.Mesh(cylinder, mat);
+                mesh.position.copy(start);
+                mesh.lookAt(end);
+                mesh.userData.isEdge = true; 
+                
+                group.add(mesh);
+            }
+            group.userData.isEdgeGroup = true;
+            return group;
+        }
+
+        function createFaceMesh(geometry, options = {}) {
+            const { showEdges = true, showVertices = true, flatShading = true } = options;
+            const material = new THREE.MeshPhongMaterial({
+                color: shapeColor, shininess: 60, specular: 0x444444, flatShading: flatShading,
+                side: THREE.DoubleSide, transparent: isTransparent, opacity: isTransparent ? 0.3 : 1.0,
+                depthWrite: !isTransparent, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.userData.isFace = true; 
+            
+            if (showEdges && currentShapeType !== 'sphere') {
+                const thickEdges = createThickEdges(geometry, edgeColor);
+                if(options.clippingPlanes) thickEdges.traverse(c => { if(c.isMesh) c.material.clippingPlanes = options.clippingPlanes; });
+                mesh.add(thickEdges);
+            }
+
+            if (showVertices) {
+                const sphereGeo = new THREE.SphereGeometry(0.12, 8, 8);
+                const sphereMat = new THREE.MeshBasicMaterial({ color: vertexColor, clippingPlanes: options.clippingPlanes || [] });
+                const pos = geometry.attributes.position;
+                for(let i=0; i<pos.count; i++){
+                    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+                    const isAxis = (Math.abs(x) < 0.01 && Math.abs(z) < 0.01); 
+                    let skip = false;
+                    if(currentShapeType.includes('cylinder') || currentShapeType === 'sphere') skip = true;
+                    else if(currentShapeType.includes('Prism') && isAxis) skip = true; 
+                    else if((currentShapeType.includes('Pyramid') || currentShapeType === 'cone')) {
+                        if (isUnfolded && Math.abs(y) < 0.1) skip = true;
+                        else if (!isUnfolded && y < currentHeight * 0.4) skip = true; 
+                    }
+                    if(!skip) {
+                        const v = new THREE.Mesh(sphereGeo, sphereMat);
+                        v.position.set(x, y, z);
+                        v.userData.isVertex = true;
+                        mesh.add(v);
+                    }
+                }
+            }
+            return mesh;
+        }
+
+        function createSolidWithSection(geometry, showVertices) {
+            const group = new THREE.Group();
+            const mat = new THREE.MeshPhongMaterial({
+                color: shapeColor, shininess: 60, specular: 0x444444,
+                flatShading: !(currentShapeType.includes('cylinder')||currentShapeType==='sphere'||currentShapeType==='cone'),
+                side: THREE.DoubleSide, clippingPlanes: [clipPlane]
+            });
+            group.add(new THREE.Mesh(geometry, mat));
+            
+            const stencilMat = new THREE.MeshBasicMaterial({ color: 0, side: THREE.BackSide, clippingPlanes: [clipPlane], colorWrite:false, depthWrite:false, stencilWrite:true, stencilFunc:THREE.AlwaysStencilFunc, stencilFail:THREE.KeepStencilOp, stencilZFail:THREE.KeepStencilOp, stencilZPass:THREE.IncrementStencilOp });
+            group.add(new THREE.Mesh(geometry, stencilMat));
+            
+            const capMat = new THREE.MeshBasicMaterial({ color: sectionColor, side: THREE.DoubleSide, stencilWrite:true, stencilFunc:THREE.EqualStencilFunc, stencilRef:1 });
+            const cap = new THREE.Mesh(new THREE.PlaneGeometry(20,20), capMat);
+            cap.userData.isCap=true; alignCapToPlane(cap, clipPlane); group.add(cap);
+            
+            if(currentShapeType !== 'sphere') {
+                const edges = createThickEdges(geometry, edgeColor);
+                edges.traverse(c=>{if(c.isMesh)c.material.clippingPlanes=[clipPlane]});
+                group.add(edges);
+            }
+            return group;
+        }
+        function alignCapToPlane(mesh, plane) {
+            const normal = plane.normal.clone();
+            const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,0,1), normal);
+            mesh.setRotationFromQuaternion(quaternion);
+            mesh.position.copy(normal.multiplyScalar(-plane.constant));
+        }
+        function updateClipPlane() {
+            let normal = new THREE.Vector3(0, 1, 0); 
+            if (sliceMode === 'x') normal.set(1, 0, 0); 
+            else if (sliceMode === 'oblique') normal.set(1, 1, 0).normalize();
+            clipPlane.normal.copy(normal);
+            clipPlane.constant = -sliceValue; 
+        }
+
+        // --- 1. 實體模型 ---
+        function createSolidMesh(type, r, h) {
+            let nSides = 3;
+            if (type.includes('rect')) nSides = 4;
+            if (type.includes('pent')) nSides = 5;
+            if (type.includes('hex')) nSides = 6;
+            if (type.includes('hept')) nSides = 7;
+            if (type === 'cylinder') nSides = 64;
+            if (type === 'cone') nSides = 64;
+            const isCurved = (type === 'cylinder' || type === 'cone' || type === 'sphere');
+
+            let geo;
+            if (type === 'sphere') {
+                geo = new THREE.SphereGeometry(r, 64, 64);
+                geo.translate(0, r, 0);
+                return createFaceMesh(geo, { showEdges: false, flatShading: false });
+            } else if (type.includes('Prism') || type === 'cylinder') {
+                geo = new THREE.CylinderGeometry(r, r, h, nSides);
+                geo.translate(0, h/2, 0);
+            } else {
+                geo = new THREE.ConeGeometry(r, h, nSides);
+                geo.translate(0, h/2, 0);
+            }
+
+            if (type.includes('rect')) geo.rotateY(Math.PI/4);
+            
+            // 統一實體旋轉，對齊展開圖 (Net)
+            if (!isCurved && type !== 'sphere') {
+                geo.rotateY(Math.PI/2 - Math.PI/nSides);
+            }
+
+            if (sliceMode !== 'none') return createSolidWithSection(geo, !isCurved);
+            return createFaceMesh(geo, { showVertices: !isCurved, showInternalEdges: !isCurved, flatShading: !isCurved });
+        }
+
+        // --- 2. 展開圖 (Net) ---
+        function createFlatNet(type, r, h) {
+            const root = new THREE.Group();
+            if (type === 'sphere') return root;
+
+            let nSides = 3;
+            if (type.includes('rect')) nSides = 4;
+            if (type.includes('pent')) nSides = 5;
+            if (type.includes('hex')) nSides = 6;
+            if (type.includes('hept')) nSides = 7;
+            
+            const isCurved = (type === 'cylinder' || type === 'cone');
+            if (isCurved) nSides = 64;
+
+            // 輔助函數：生成底邊水平且置中的多邊形
+            function getPolyShape(n, radius) {
+                const shape = new THREE.Shape();
+                const vertices2D = getPolygonVertices(n, radius);
+                shape.moveTo(vertices2D[0].x, vertices2D[0].y);
+                for(let i=1; i<n; i++) shape.lineTo(vertices2D[i].x, vertices2D[i].y);
+                shape.closePath();
+                return shape;
+            }
+
+            // A. 柱體 (Prism & Cylinder)
+            if (type.includes('Prism') || type === 'cylinder') {
+                const sideWidth = isCurved ? (2 * Math.PI * r) / 64 : 2 * r * Math.sin(Math.PI / nSides);
+                const totalWidth = isCurved ? (2 * Math.PI * r) : nSides * sideWidth;
+                const apothem = r * Math.cos(Math.PI / nSides);
+                
+                const numPanels = isCurved ? 1 : nSides;
+                const panelWidth = isCurved ? totalWidth : sideWidth;
+                const midIndex = Math.floor((numPanels - 1) / 2);
+
+                // 1. 側面展開 (一排矩形)
+                for (let i = 0; i < numPanels; i++) {
+                    const planeGeo = new THREE.PlaneGeometry(panelWidth, h);
+                    const planeMesh = createFaceMesh(planeGeo, { showVertices: !isCurved, flatShading: !isCurved });
+                    const xPos = (i - (numPanels - 1) / 2) * panelWidth;
+                    planeMesh.position.set(xPos, 0, 0);
+                    root.add(planeMesh);
+                }
+
+                const baseShape = getPolyShape(isCurved ? 64 : nSides, r);
+                const baseGeo = new THREE.ShapeGeometry(baseShape);
+                const midX = (midIndex - (numPanels - 1) / 2) * panelWidth;
+                const offset = isCurved ? r : apothem;
+
+                // 2. 頂面 (連在中間矩形上方)
+                const topMesh = createFaceMesh(baseGeo, { showVertices: !isCurved, flatShading: !isCurved });
+                topMesh.position.set(midX, h/2 + offset, 0);
+                root.add(topMesh);
+
+                // 3. 底面 (連在中間矩形下方，需旋轉180度對齊平邊)
+                const bottomMesh = createFaceMesh(baseGeo, { showVertices: !isCurved, flatShading: !isCurved });
+                bottomMesh.position.set(midX, -h/2 - offset, 0);
+                bottomMesh.rotation.z = Math.PI;
+                root.add(bottomMesh);
+            }
+
+            // B. 錐體 (Pyramid & Cone)
+            if (type.includes('Pyramid') || type === 'cone') {
+                if (!isCurved) {
+                    // 多角錐：星形展開
+                    const sideWidth = 2 * r * Math.sin(Math.PI / nSides);
+                    const apothem = r * Math.cos(Math.PI / nSides);
+                    const slantHeight = Math.sqrt(h * h + apothem * apothem);
+
+                    // 1. 中心底面
+                    const baseShape = getPolyShape(nSides, r);
+                    const baseMesh = createFaceMesh(new THREE.ShapeGeometry(baseShape), { showVertices: true, flatShading: true });
+                    root.add(baseMesh);
+
+                    // 2. 側面三角形 (環繞底面)
+                    for (let i = 0; i < nSides; i++) {
+                        const triShape = new THREE.Shape();
+                        triShape.moveTo(-sideWidth/2, 0);
+                        triShape.lineTo(sideWidth/2, 0);
+                        triShape.lineTo(0, slantHeight); // 預設頂點朝上 (+Y)
+                        triShape.closePath();
+                        
+                        const triMesh = createFaceMesh(new THREE.ShapeGeometry(triShape), { showVertices: true, flatShading: true });
+                        const theta = -Math.PI/2 + i * (2 * Math.PI / nSides); // 每條邊緣的中心角度
+                        
+                        triMesh.position.set(apothem * Math.cos(theta), apothem * Math.sin(theta), 0);
+                        triMesh.rotation.z = theta - Math.PI/2; // 旋轉使底邊貼合，頂點朝外
+                        root.add(triMesh);
+                    }
+                } else {
+                    // 圓錐：扇形 + 圓
+                    const L = Math.sqrt(h*h + r*r);
+                    const arcLength = 2 * Math.PI * r;
+                    const theta = arcLength / L; 
+
+                    // 1. 扇形側面
+                    const sectorShape = new THREE.Shape();
+                    sectorShape.moveTo(0, 0);
+                    sectorShape.absarc(0, 0, L, -theta/2, theta/2, false);
+                    sectorShape.lineTo(0, 0);
+                    
+                    const sectorMesh = createFaceMesh(new THREE.ShapeGeometry(sectorShape, 64), { showVertices: false, flatShading: false });
+                    sectorMesh.rotation.z = -Math.PI/2; // 讓弧線朝下
+                    sectorMesh.position.set(0, L, 0);   // 將弧線中點移至原點
+                    root.add(sectorMesh);
+
+                    // 2. 底面圓
+                    const baseShape = getPolyShape(64, r);
+                    const baseMesh = createFaceMesh(new THREE.ShapeGeometry(baseShape), { showVertices: false, flatShading: false });
+                    baseMesh.position.set(0, -r, 0); // 貼在原點下方
+                    root.add(baseMesh);
+                }
+            }
+
+            // 將在 XY 平面建構好的展開圖，平躺到 XZ 平面
+            root.rotation.x = -Math.PI / 2;
+            return root;
+        }
+
+        // --- 主邏輯 (保持不變) ---
+        function updateShape() {
+            mainGroup.clear();
+            if(sliceMode !== 'none') updateClipPlane();
+            if (isUnfolded && sliceMode === 'none') {
+                mainGroup.add(createFlatNet(currentShapeType, baseSize, currentHeight));
+            } else {
+                mainGroup.add(createSolidMesh(currentShapeType, baseSize, currentHeight));
+            }
+            updateVisibility();
+        }
+        
+        window.setSliceMode = function(mode) {
+            sliceMode = mode;
+            const slider = document.getElementById('slice-slider-container');
+            const unfoldBtn = document.getElementById('unfold-btn');
+            const unfoldTxt = document.getElementById('unfold-text');
+            document.querySelectorAll('.btn-slice').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            if (mode === 'none') {
+                slider.classList.add('hidden');
+                unfoldBtn.disabled = false;
+                unfoldBtn.style.opacity = '1';
+                if(unfoldTxt) unfoldTxt.innerText = isUnfolded ? "摺疊回立體" : "展開成摺紙圖";
+            } else {
+                slider.classList.remove('hidden');
+                if(isUnfolded) toggleUnfold(); 
+                unfoldBtn.disabled = true;
+                if(unfoldTxt) unfoldTxt.innerText = "截面模式中無法展開";
+                unfoldBtn.style.opacity = '0.5';
+                document.getElementById('slice-slider').value = 0;
+                sliceValue = 0;
+            }
+            updateShape();
+        }
+        document.getElementById('slice-slider').addEventListener('input', function() { sliceValue = parseFloat(this.value); updateShape(); });
+        function toggleUnfold() {
+            isUnfolded = !isUnfolded;
+            const btn = document.getElementById('unfold-btn');
+            const txt = document.getElementById('unfold-text');
+            if (isUnfolded) {
+                btn.classList.add('active');
+                if(txt) txt.innerText = "摺疊回立體";
+                controls.reset(); camera.position.set(0, 15, 0); 
+            } else {
+                btn.classList.remove('active');
+                if(txt) txt.innerText = "展開成摺紙圖";
+                camera.position.set(6, 6, 9);
+            }
+            controls.update();
+            updateShape();
+        }
+        window.updateVisibility = function() {
+            const showFaces = document.getElementById('show-faces').checked;
+            const showEdges = document.getElementById('show-edges').checked;
+            const showVertices = document.getElementById('show-vertices').checked;
+            mainGroup.traverse(obj => {
+                if (obj.userData.isFace && obj.material) obj.material.visible = showFaces;
+                if (obj.userData.isEdgeGroup || obj.type === 'LineSegments') obj.visible = showEdges;
+                if (obj.userData.isVertex) {
+                    if(currentShapeType==='cylinder'||currentShapeType==='sphere') obj.visible = false;
+                    else obj.visible = showVertices;
+                    if(isUnfolded && !showVertices) obj.visible = false;
+                }
+            });
+        }
+        window.toggleTransparency = function() { isTransparent = document.getElementById('xray-toggle').checked; updateShape(); }
+        window.selectShape = function(type) {
+            currentShapeType = type;
+            document.querySelectorAll('.btn-shape').forEach(btn => btn.classList.remove('active'));
+            if(event) event.currentTarget.classList.add('active');
+            isUnfolded = false;
+            const btn = document.getElementById('unfold-btn');
+            const txt = document.getElementById('unfold-text');
+            btn.classList.remove('active');
+            if(txt) txt.innerText = "展開成摺紙圖";
+            camera.position.set(6, 6, 9);
+            if(type === 'sphere') {
+                if(sliceMode==='none') { btn.disabled = true; if(txt) txt.innerText = "球體不能展開"; btn.style.opacity='0.5'; }
+            } else {
+                if(sliceMode==='none') { btn.disabled = false; btn.style.opacity='1'; }
+            }
+            updateShape(); updateInfoPanel(type);
+        }
+        document.getElementById('height-slider').addEventListener('input', function() { currentHeight = parseFloat(this.value); updateShape(); });
+        function updateInfoPanel(type) {
+            const data = shapeData[type];
+            document.getElementById('info-title').innerText = data.name;
+            ['face', 'edge', 'vertex'].forEach(k => document.getElementById(k+'-count').innerText = data[k==='vertex'?'vertices':k+'s']);
+        }
+        function onWindowResize() { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
+        function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }
+        init();
+    </script>
+</body>
+</html>
