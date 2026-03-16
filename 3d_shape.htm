@@ -157,7 +157,6 @@
                 <div class="flex justify-between gap-1.5 mb-2">
                     <button class="btn-slice active flex-1" onclick="setSliceMode('none')">無</button>
                     <button class="btn-slice flex-1" onclick="setSliceMode('y')">橫切</button>
-                    <!-- 修改為 Z 軸切，確保多圖形並排時能同時切過每個圖形的中心 -->
                     <button class="btn-slice flex-1" onclick="setSliceMode('z')">直切</button>
                     <button class="btn-slice flex-1" onclick="setSliceMode('oblique')">斜切</button>
                 </div>
@@ -237,7 +236,7 @@
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0xf0f9ff);
 
-            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
             
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
@@ -256,7 +255,7 @@
             backLight.position.set(-5, 5, -5);
             scene.add(backLight);
 
-            gridHelper = new THREE.GridHelper(30, 30, 0xcbd5e1, 0xe2e8f0);
+            gridHelper = new THREE.GridHelper(50, 50, 0xcbd5e1, 0xe2e8f0);
             scene.add(gridHelper);
 
             controls = new THREE.OrbitControls(camera, renderer.domElement);
@@ -283,6 +282,39 @@
             }, 800);
 
             animate();
+        }
+
+        function createTextSprite(text, planes = []) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = '#f59e0b';
+            ctx.beginPath();
+            ctx.arc(64, 64, 50, 0, 2 * Math.PI);
+            ctx.fill();
+
+            ctx.lineWidth = 6;
+            ctx.strokeStyle = '#ffffff';
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 50px "Noto Sans TC", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, 64, 68);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const material = new THREE.SpriteMaterial({ 
+                map: texture, 
+                depthTest: true,
+                clippingPlanes: planes
+            });
+            const sprite = new THREE.Sprite(material);
+            sprite.scale.set(0.8, 0.8, 1);
+            sprite.userData.isLabel = true;
+            return sprite;
         }
 
         function getPolygonVertices(n, r) {
@@ -354,18 +386,10 @@
                     const isAxis = (Math.abs(x) < 0.01 && Math.abs(z) < 0.01); 
                     let skip = false;
                     
-                    if(type.includes('cylinder') || type === 'sphere') {
-                        skip = true;
-                    } 
-                    else if (type === 'cone') {
-                        if (!isAxis || y < 0.1) skip = true;
-                    }
-                    else if(type.includes('Prism') && isAxis) {
-                        skip = true; 
-                    }
-                    else if(type.includes('Pyramid')) {
-                        if (isAxis && Math.abs(y) < 0.1) skip = true;
-                    }
+                    if(type.includes('cylinder') || type === 'sphere') skip = true;
+                    else if (type === 'cone') { if (!isAxis || y < 0.1) skip = true; }
+                    else if(type.includes('Prism') && isAxis) skip = true; 
+                    else if(type.includes('Pyramid')) { if (isAxis && Math.abs(y) < 0.1) skip = true; }
 
                     if(!skip) {
                         const key = `${Math.round(x*100)},${Math.round(y*100)},${Math.round(z*100)}`;
@@ -399,21 +423,19 @@
             group.add(new THREE.Mesh(geometry, stencilMat));
             
             const capMat = new THREE.MeshBasicMaterial({ color: sectionColor, side: THREE.DoubleSide, stencilWrite:true, stencilFunc:THREE.EqualStencilFunc, stencilRef:1 });
-            const cap = new THREE.Mesh(new THREE.PlaneGeometry(30,30), capMat);
+            const cap = new THREE.Mesh(new THREE.PlaneGeometry(50,50), capMat);
             cap.userData.isCap=true; alignCapToPlane(cap, clipPlane); group.add(cap);
             
             if(type !== 'sphere') {
                 const edges = createThickEdges(geometry, edgeColor);
                 edges.traverse(c=>{
-                    if(c.isMesh) {
-                        c.material.clippingPlanes=[clipPlane];
-                        c.userData.shapeType = type;
-                    }
+                    if(c.isMesh) { c.material.clippingPlanes=[clipPlane]; c.userData.shapeType = type; }
                 });
                 group.add(edges);
             }
             return group;
         }
+
         function alignCapToPlane(mesh, plane) {
             const normal = plane.normal.clone();
             const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,0,1), normal);
@@ -422,17 +444,73 @@
         }
         
         function updateClipPlane() {
-            // 改為朝向內部切割，讓剖面面向攝影機 (提高視覺體驗)
             let normal = new THREE.Vector3(0, -1, 0); 
-            
-            if (sliceMode === 'z') {
-                normal.set(0, 0, -1); // 由前往後切
-            } else if (sliceMode === 'oblique') {
-                normal.set(0, -1, -1).normalize(); // 斜向由前上往後下切
-            }
-            
+            if (sliceMode === 'z') normal.set(0, 0, -1);
+            else if (sliceMode === 'oblique') normal.set(0, -1, -1).normalize();
             clipPlane.normal.copy(normal);
             clipPlane.constant = sliceValue; 
+        }
+
+        // --- 計算並添加立體圖形的數字標籤 ---
+        function addSolidLabels(group, type, r, h, nSides, isCurved, planes) {
+            const offset = 0.2; 
+            
+            if (type === 'sphere') {
+                const sprite = createTextSprite(1, planes);
+                sprite.position.set(0, r * 2 + offset, 0); 
+                group.add(sprite);
+            } else if (type.includes('Prism') || type === 'cylinder') {
+                const topSprite = createTextSprite(1, planes);
+                topSprite.position.set(0, h + offset, 0);
+                group.add(topSprite);
+                
+                const bottomSprite = createTextSprite(2, planes);
+                bottomSprite.position.set(0, -offset, 0);
+                group.add(bottomSprite);
+                
+                if (isCurved) {
+                    const sideSprite = createTextSprite(3, planes);
+                    sideSprite.position.set(0, h/2, r + offset);
+                    group.add(sideSprite);
+                } else {
+                    const apothem = r * Math.cos(Math.PI / nSides);
+                    const startAngle = Math.PI / nSides; 
+                    for (let i = 0; i < nSides; i++) {
+                        const theta = startAngle + i * (2 * Math.PI / nSides);
+                        const sprite = createTextSprite(3 + i, planes);
+                        const px = (apothem + offset) * Math.sin(theta); 
+                        const pz = (apothem + offset) * Math.cos(theta);
+                        sprite.position.set(px, h/2, pz);
+                        group.add(sprite);
+                    }
+                }
+            } else if (type.includes('Pyramid') || type === 'cone') {
+                const bottomSprite = createTextSprite(1, planes);
+                bottomSprite.position.set(0, -offset, 0);
+                group.add(bottomSprite);
+                
+                if (isCurved) {
+                    // 修正重點：圓錐是有斜度的，頂部在 h，底部在 0。
+                    // 因此在高度 y = h/3 的地方，其半徑為 r * (2/3) 而不是 r/2
+                    const sideSprite = createTextSprite(2, planes);
+                    const currentRadius = r * (2/3);
+                    // 加入 offset * 1.5 確保它稍微浮在表面外，不會被曲面吃掉
+                    sideSprite.position.set(0, h/3, currentRadius + offset * 1.5); 
+                    group.add(sideSprite);
+                } else {
+                    const apothem = r * Math.cos(Math.PI / nSides);
+                    const startAngle = Math.PI / nSides;
+                    for (let i = 0; i < nSides; i++) {
+                        const theta = startAngle + i * (2 * Math.PI / nSides);
+                        const sprite = createTextSprite(2 + i, planes);
+                        const baseDist = (apothem * 2/3) + offset;
+                        const px = baseDist * Math.sin(theta);
+                        const pz = baseDist * Math.cos(theta);
+                        sprite.position.set(px, h/3 + offset/2, pz);
+                        group.add(sprite);
+                    }
+                }
+            }
         }
 
         function createSolidMesh(type, r, h) {
@@ -441,28 +519,40 @@
             if (type.includes('pent')) nSides = 5;
             if (type.includes('hex')) nSides = 6;
             if (type.includes('hept')) nSides = 7;
-            if (type === 'cylinder') nSides = 64;
-            if (type === 'cone') nSides = 64;
             const isCurved = (type === 'cylinder' || type === 'cone' || type === 'sphere');
 
             let geo;
             if (type === 'sphere') {
                 geo = new THREE.SphereGeometry(r, 64, 64);
                 geo.translate(0, r, 0);
-                return createFaceMesh(type, geo, { showEdges: false, flatShading: false });
             } else if (type.includes('Prism') || type === 'cylinder') {
-                geo = new THREE.CylinderGeometry(r, r, h, nSides);
+                geo = new THREE.CylinderGeometry(r, r, h, isCurved ? 64 : nSides);
                 geo.translate(0, h/2, 0);
             } else {
-                geo = new THREE.ConeGeometry(r, h, nSides);
+                geo = new THREE.ConeGeometry(r, h, isCurved ? 64 : nSides);
                 geo.translate(0, h/2, 0);
             }
 
             if (type.includes('rect')) geo.rotateY(Math.PI/4);
             if (!isCurved && type !== 'sphere') geo.rotateY(Math.PI/2 - Math.PI/nSides);
 
-            if (sliceMode !== 'none') return createSolidWithSection(type, geo, !isCurved);
-            return createFaceMesh(type, geo, { showVertices: !isCurved, showInternalEdges: !isCurved, flatShading: !isCurved });
+            let meshOrGroup;
+            const planes = sliceMode !== 'none' ? [clipPlane] : [];
+            if (sliceMode !== 'none') {
+                meshOrGroup = createSolidWithSection(type, geo, !isCurved);
+            } else {
+                meshOrGroup = createFaceMesh(type, geo, { showVertices: !isCurved, showInternalEdges: !isCurved, flatShading: !isCurved });
+            }
+
+            const rootGroup = new THREE.Group();
+            rootGroup.add(meshOrGroup);
+
+            const labelGroup = new THREE.Group();
+            labelGroup.userData.isLabelGroup = true;
+            addSolidLabels(labelGroup, type, r, h, nSides, isCurved, planes);
+            rootGroup.add(labelGroup);
+
+            return rootGroup;
         }
 
         function createFlatNet(type, r, h) {
@@ -477,6 +567,8 @@
             
             const isCurved = (type === 'cylinder' || type === 'cone');
             if (isCurved) nSides = 64;
+
+            const labelOffset = 0.05;
 
             function getPolyShape(n, radius) {
                 const shape = new THREE.Shape();
@@ -501,6 +593,11 @@
                     const planeMesh = createFaceMesh(type, planeGeo, { showVertices: !isCurved, flatShading: !isCurved });
                     const xPos = (i - (numPanels - 1) / 2) * panelWidth;
                     planeMesh.position.set(xPos, 0, 0);
+                    
+                    const sprite = createTextSprite(3 + i);
+                    sprite.position.set(0, 0, labelOffset);
+                    planeMesh.add(sprite);
+                    
                     root.add(planeMesh);
                 }
 
@@ -511,11 +608,17 @@
 
                 const topMesh = createFaceMesh(type, baseGeo, { showVertices: !isCurved, flatShading: !isCurved });
                 topMesh.position.set(midX, h/2 + offset, 0);
+                const topSprite = createTextSprite(1); 
+                topSprite.position.set(0, 0, labelOffset);
+                topMesh.add(topSprite);
                 root.add(topMesh);
 
                 const bottomMesh = createFaceMesh(type, baseGeo, { showVertices: !isCurved, flatShading: !isCurved });
                 bottomMesh.position.set(midX, -h/2 - offset, 0);
                 bottomMesh.rotation.z = Math.PI;
+                const bottomSprite = createTextSprite(2); 
+                bottomSprite.position.set(0, 0, labelOffset);
+                bottomMesh.add(bottomSprite);
                 root.add(bottomMesh);
             }
 
@@ -527,6 +630,9 @@
 
                     const baseShape = getPolyShape(nSides, r);
                     const baseMesh = createFaceMesh(type, new THREE.ShapeGeometry(baseShape), { showVertices: true, flatShading: true });
+                    const baseSprite = createTextSprite(1); 
+                    baseSprite.position.set(0, 0, labelOffset);
+                    baseMesh.add(baseSprite);
                     root.add(baseMesh);
 
                     for (let i = 0; i < nSides; i++) {
@@ -541,6 +647,11 @@
                         
                         triMesh.position.set(apothem * Math.cos(theta), apothem * Math.sin(theta), 0);
                         triMesh.rotation.z = theta - Math.PI/2; 
+                        
+                        const sprite = createTextSprite(2 + i); 
+                        sprite.position.set(0, slantHeight / 3, labelOffset); 
+                        triMesh.add(sprite);
+                        
                         root.add(triMesh);
                     }
                 } else {
@@ -556,11 +667,19 @@
                     const sectorMesh = createFaceMesh(type, new THREE.ShapeGeometry(sectorShape, 64), { showVertices: false, flatShading: false });
                     sectorMesh.rotation.z = -Math.PI/2; 
                     sectorMesh.position.set(0, L, 0);   
+                    
+                    const sideSprite = createTextSprite(2);
+                    sideSprite.position.set(L * 0.6, 0, labelOffset); 
+                    sectorMesh.add(sideSprite);
+                    
                     root.add(sectorMesh);
 
                     const baseShape = getPolyShape(64, r);
                     const baseMesh = createFaceMesh(type, new THREE.ShapeGeometry(baseShape), { showVertices: false, flatShading: false });
                     baseMesh.position.set(0, -r, 0); 
+                    const baseSprite = createTextSprite(1);
+                    baseSprite.position.set(0, 0, labelOffset);
+                    baseMesh.add(baseSprite);
                     root.add(baseMesh);
                 }
             }
@@ -573,7 +692,7 @@
             mainGroup.clear();
             if(sliceMode !== 'none') updateClipPlane();
             
-            const spacing = 5; 
+            const spacing = isUnfolded ? 14 : 5; 
             const startX = -((selectedShapes.length - 1) * spacing) / 2;
 
             selectedShapes.forEach((type, index) => {
@@ -594,7 +713,9 @@
         function resetCamera() {
             const count = selectedShapes.length;
             if (isUnfolded) {
-                camera.position.set(0, 15 + count * 2, 0);
+                if (count === 1) camera.position.set(0, 15, 0);
+                else if (count === 2) camera.position.set(0, 25, 0);
+                else camera.position.set(0, 36, 0); 
             } else {
                 if (count === 1) camera.position.set(6, 6, 9);
                 else if (count === 2) camera.position.set(8, 7, 12);
@@ -619,16 +740,10 @@
         window.selectShape = function(type) {
             if (isCompareMode) {
                 if (selectedShapes.includes(type)) {
-                    if (selectedShapes.length > 1) {
-                        selectedShapes = selectedShapes.filter(s => s !== type);
-                    }
+                    if (selectedShapes.length > 1) selectedShapes = selectedShapes.filter(s => s !== type);
                 } else {
-                    if (selectedShapes.length < 3) {
-                        selectedShapes.push(type);
-                    } else {
-                        selectedShapes.shift(); 
-                        selectedShapes.push(type); 
-                    }
+                    if (selectedShapes.length < 3) selectedShapes.push(type);
+                    else { selectedShapes.shift(); selectedShapes.push(type); }
                 }
             } else {
                 selectedShapes = [type];
@@ -651,11 +766,8 @@
             document.querySelectorAll('.btn-shape').forEach(btn => {
                 const onclickAttr = btn.getAttribute('onclick');
                 const type = onclickAttr.match(/'([^']+)'/)[1];
-                if (selectedShapes.includes(type)) {
-                    btn.classList.add('active');
-                } else {
-                    btn.classList.remove('active');
-                }
+                if (selectedShapes.includes(type)) btn.classList.add('active');
+                else btn.classList.remove('active');
             });
             
             const btn = document.getElementById('unfold-btn');
@@ -675,23 +787,15 @@
             if (!slider || sliceMode === 'none') return;
             
             if (sliceMode === 'y') {
-                slider.min = -0.5;
-                slider.max = currentHeight + 0.5;
+                slider.min = -0.5; slider.max = currentHeight + 0.5;
             } else if (sliceMode === 'z') {
-                slider.min = -baseSize - 0.5;
-                slider.max = baseSize + 0.5;
+                slider.min = -baseSize - 0.5; slider.max = baseSize + 0.5;
             } else if (sliceMode === 'oblique') {
-                slider.min = -baseSize - 0.5;
-                slider.max = currentHeight + baseSize + 0.5;
+                slider.min = -baseSize - 0.5; slider.max = currentHeight + baseSize + 0.5;
             }
 
-            if (sliceValue > slider.max) {
-                sliceValue = slider.max;
-                slider.value = sliceValue;
-            } else if (sliceValue < slider.min) {
-                sliceValue = slider.min;
-                slider.value = sliceValue;
-            }
+            if (sliceValue > slider.max) { sliceValue = slider.max; slider.value = sliceValue; } 
+            else if (sliceValue < slider.min) { sliceValue = slider.min; slider.value = sliceValue; }
         }
 
         function updateInfoPanel() {
@@ -700,9 +804,12 @@
             const showFacesEl = document.getElementById('show-faces');
             const showEdgesEl = document.getElementById('show-edges');
             const showVerticesEl = document.getElementById('show-vertices');
+            const showLabelsEl = document.getElementById('show-labels'); 
+            
             const showFacesChecked = showFacesEl ? showFacesEl.checked : true;
             const showEdgesChecked = showEdgesEl ? showEdgesEl.checked : true;
             const showVerticesChecked = showVerticesEl ? showVerticesEl.checked : false;
+            const showLabelsChecked = showLabelsEl ? showLabelsEl.checked : false;
 
             let html = '';
             
@@ -748,17 +855,23 @@
 
             html += `
                 <div class="flex justify-between items-center bg-white/80 p-2 rounded-lg shadow-sm border border-emerald-100">
-                    <label class="flex items-center space-x-1 cursor-pointer select-none hover:bg-emerald-50 p-1 rounded transition">
-                        <input type="checkbox" id="show-faces" class="feature-checkbox" ${showFacesChecked ? 'checked' : ''} onchange="updateVisibility()">
-                        <span class="text-xs font-bold text-gray-700">面</span>
-                    </label>
-                    <label class="flex items-center space-x-1 cursor-pointer select-none hover:bg-emerald-50 p-1 rounded transition">
-                        <input type="checkbox" id="show-edges" class="feature-checkbox" ${showEdgesChecked ? 'checked' : ''} onchange="updateVisibility()">
-                        <span class="text-xs font-bold text-gray-700">棱</span>
-                    </label>
-                    <label class="flex items-center space-x-1 cursor-pointer select-none hover:bg-emerald-50 p-1 rounded transition">
-                        <input type="checkbox" id="show-vertices" class="feature-checkbox" ${showVerticesChecked ? 'checked' : ''} onchange="updateVisibility()">
-                        <span class="text-xs font-bold text-gray-700">頂點</span>
+                    <div class="flex gap-2">
+                        <label class="flex items-center space-x-1 cursor-pointer select-none hover:bg-emerald-50 p-1 rounded transition">
+                            <input type="checkbox" id="show-faces" class="feature-checkbox" ${showFacesChecked ? 'checked' : ''} onchange="updateVisibility()">
+                            <span class="text-xs font-bold text-gray-700">面</span>
+                        </label>
+                        <label class="flex items-center space-x-1 cursor-pointer select-none hover:bg-emerald-50 p-1 rounded transition">
+                            <input type="checkbox" id="show-edges" class="feature-checkbox" ${showEdgesChecked ? 'checked' : ''} onchange="updateVisibility()">
+                            <span class="text-xs font-bold text-gray-700">棱</span>
+                        </label>
+                        <label class="flex items-center space-x-1 cursor-pointer select-none hover:bg-emerald-50 p-1 rounded transition">
+                            <input type="checkbox" id="show-vertices" class="feature-checkbox" ${showVerticesChecked ? 'checked' : ''} onchange="updateVisibility()">
+                            <span class="text-xs font-bold text-gray-700">頂點</span>
+                        </label>
+                    </div>
+                    <label class="flex items-center space-x-1 cursor-pointer select-none bg-amber-50 hover:bg-amber-100 p-1.5 rounded-md transition border border-amber-200">
+                        <input type="checkbox" id="show-labels" class="feature-checkbox accent-amber-500" ${showLabelsChecked ? 'checked' : ''} onchange="updateVisibility()">
+                        <span class="text-xs font-bold text-amber-800">標示面數</span>
                     </label>
                 </div>
             `;
@@ -774,11 +887,8 @@
             const unfoldTxt = document.getElementById('unfold-text');
             
             document.querySelectorAll('.btn-slice').forEach(btn => {
-                if (btn.getAttribute('onclick').includes(`'${mode}'`)) {
-                    btn.classList.add('active');
-                } else {
-                    btn.classList.remove('active');
-                }
+                if (btn.getAttribute('onclick').includes(`'${mode}'`)) btn.classList.add('active');
+                else btn.classList.remove('active');
             });
             
             if (mode === 'none') {
@@ -791,20 +901,9 @@
                 if(unfoldTxt) unfoldTxt.innerText = "截面模式中無法展開";
                 unfoldBtn.style.opacity = '0.5';
                 
-                if (mode === 'y') {
-                    slider.min = -0.5;
-                    slider.max = currentHeight + 0.5;
-                    slider.value = currentHeight / 2; 
-                } else if (mode === 'z') { // 改為 Z 軸 (由前往後切)
-                    slider.min = -baseSize - 0.5;
-                    slider.max = baseSize + 0.5;
-                    slider.value = 0; 
-                } else if (mode === 'oblique') {
-                    slider.min = -baseSize - 0.5;
-                    slider.max = currentHeight + baseSize + 0.5;
-                    slider.value = currentHeight / 2; 
-                }
-                
+                if (mode === 'y') { slider.min = -0.5; slider.max = currentHeight + 0.5; slider.value = currentHeight / 2; } 
+                else if (mode === 'z') { slider.min = -baseSize - 0.5; slider.max = baseSize + 0.5; slider.value = 0; } 
+                else if (mode === 'oblique') { slider.min = -baseSize - 0.5; slider.max = currentHeight + baseSize + 0.5; slider.value = currentHeight / 2; }
                 sliceValue = parseFloat(slider.value);
             }
             updateShape();
@@ -816,13 +915,8 @@
             isUnfolded = !isUnfolded;
             const btn = document.getElementById('unfold-btn');
             const txt = document.getElementById('unfold-text');
-            if (isUnfolded) {
-                btn.classList.add('active');
-                if(txt) txt.innerText = "摺疊回立體";
-            } else {
-                btn.classList.remove('active');
-                if(txt) txt.innerText = "展開成摺紙圖";
-            }
+            if (isUnfolded) { btn.classList.add('active'); if(txt) txt.innerText = "摺疊回立體"; } 
+            else { btn.classList.remove('active'); if(txt) txt.innerText = "展開成摺紙圖"; }
             resetCamera();
             updateShape();
         }
@@ -831,10 +925,12 @@
             const faceCb = document.getElementById('show-faces');
             const edgeCb = document.getElementById('show-edges');
             const vertCb = document.getElementById('show-vertices');
+            const labelCb = document.getElementById('show-labels'); 
             
             const showFaces = faceCb ? faceCb.checked : true;
             const showEdges = edgeCb ? edgeCb.checked : true;
             const showVertices = vertCb ? vertCb.checked : false;
+            const showLabels = labelCb ? labelCb.checked : false;
 
             mainGroup.traverse(obj => {
                 if (obj.userData.isFace && obj.material) obj.material.visible = showFaces;
@@ -845,15 +941,13 @@
                     else obj.visible = showVertices;
                     if(isUnfolded && !showVertices) obj.visible = false;
                 }
+                if (obj.userData.isLabel) {
+                    obj.visible = showLabels;
+                }
             });
         }
 
-        window.toggleGrid = function() {
-            if (gridHelper) {
-                gridHelper.visible = document.getElementById('grid-toggle').checked;
-            }
-        }
-
+        window.toggleGrid = function() { if (gridHelper) gridHelper.visible = document.getElementById('grid-toggle').checked; }
         window.toggleTransparency = function() { isTransparent = document.getElementById('xray-toggle').checked; updateShape(); }
         
         document.getElementById('height-slider').addEventListener('input', function() { 
