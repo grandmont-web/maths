@@ -166,17 +166,31 @@
             </div>
 
             <!-- 4. 展開與調整 -->
-            <div class="space-y-3">
+            <div class="space-y-3 pb-4">
                 <button id="unfold-btn" class="btn-unfold w-full py-2.5 rounded-xl font-bold text-sm shadow-md flex items-center justify-center gap-2 transform active:scale-95" onclick="toggleUnfold()">
                     <span id="unfold-text">展開成摺紙圖</span>
                 </button>
 
                 <div class="flex items-center gap-3 bg-gray-50 p-2.5 rounded-xl border border-gray-200">
-                    <div class="flex-1">
-                        <label class="text-[10px] text-gray-500 font-bold block mb-1 uppercase">高度調整</label>
-                        <input type="range" id="height-slider" min="1" max="5" step="0.1" value="2.5" class="w-full h-1.5 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+                    <div class="flex-1 flex flex-col gap-2">
+                        <!-- 高度調整 -->
+                        <div class="flex flex-col">
+                            <div class="flex justify-between items-baseline mb-0.5">
+                                <label class="text-[10px] text-gray-500 font-bold uppercase">高度</label>
+                                <span id="height-val" class="text-[9px] text-indigo-500 font-bold">2.5</span>
+                            </div>
+                            <input type="range" id="height-slider" min="1" max="5" step="0.1" value="2.5" class="w-full h-1.5 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+                        </div>
+                        <!-- 闊度調整 -->
+                        <div class="flex flex-col">
+                            <div class="flex justify-between items-baseline mb-0.5">
+                                <label class="text-[10px] text-gray-500 font-bold uppercase">闊度</label>
+                                <span id="width-val" class="text-[9px] text-indigo-500 font-bold">1.5</span>
+                            </div>
+                            <input type="range" id="width-slider" min="0.5" max="3" step="0.1" value="1.5" class="w-full h-1.5 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+                        </div>
                     </div>
-                    <div class="border-l pl-3 border-gray-300 flex gap-3">
+                    <div class="border-l pl-3 border-gray-300 flex flex-col justify-center gap-3 h-full">
                         <label class="flex flex-col items-center cursor-pointer group">
                             <span class="text-[10px] text-gray-500 font-bold mb-1 uppercase group-hover:text-indigo-600">網格</span>
                             <input type="checkbox" id="grid-toggle" class="accent-indigo-500 w-4 h-4 cursor-pointer" checked onchange="toggleGrid()">
@@ -204,13 +218,14 @@
         let isCompareMode = false;
         
         let currentHeight = 2.5;
+        let currentBaseSize = 1.5; // 闊度(半徑)
+        
         let isTransparent = false;
         let isUnfolded = false;
         let sliceMode = 'none';
         let sliceValue = 0;
         let clipPlane;
         
-        const baseSize = 1.5;
         const shapeColor = 0x60a5fa; 
         const edgeColor = 0x1e3a8a;
         const vertexColor = 0xff0000;
@@ -451,7 +466,6 @@
             clipPlane.constant = sliceValue; 
         }
 
-        // --- 計算並添加立體圖形的數字標籤 ---
         function addSolidLabels(group, type, r, h, nSides, isCurved, planes) {
             const offset = 0.2; 
             
@@ -490,11 +504,8 @@
                 group.add(bottomSprite);
                 
                 if (isCurved) {
-                    // 修正重點：圓錐是有斜度的，頂部在 h，底部在 0。
-                    // 因此在高度 y = h/3 的地方，其半徑為 r * (2/3) 而不是 r/2
                     const sideSprite = createTextSprite(2, planes);
                     const currentRadius = r * (2/3);
-                    // 加入 offset * 1.5 確保它稍微浮在表面外，不會被曲面吃掉
                     sideSprite.position.set(0, h/3, currentRadius + offset * 1.5); 
                     group.add(sideSprite);
                 } else {
@@ -692,15 +703,24 @@
             mainGroup.clear();
             if(sliceMode !== 'none') updateClipPlane();
             
-            const spacing = isUnfolded ? 14 : 5; 
+            // 動態計算間距：確保在不同闊度下都不會重疊
+            let spacing = 5;
+            if (isUnfolded) {
+                // 展開圖最大可能佔用的寬度（如圓柱展開為 2 * PI * r）
+                spacing = Math.max(14, currentBaseSize * 2 * Math.PI + 2); 
+            } else {
+                // 立體圖形最大佔用寬度為直徑 (2 * r)，預留 0.5r 作為間距
+                spacing = Math.max(5, currentBaseSize * 2.5);
+            }
+            
             const startX = -((selectedShapes.length - 1) * spacing) / 2;
 
             selectedShapes.forEach((type, index) => {
                 let meshOrGroup;
                 if (isUnfolded && sliceMode === 'none') {
-                    meshOrGroup = createFlatNet(type, baseSize, currentHeight);
+                    meshOrGroup = createFlatNet(type, currentBaseSize, currentHeight);
                 } else {
-                    meshOrGroup = createSolidMesh(type, baseSize, currentHeight);
+                    meshOrGroup = createSolidMesh(type, currentBaseSize, currentHeight);
                 }
                 
                 meshOrGroup.position.x = startX + index * spacing;
@@ -712,14 +732,15 @@
 
         function resetCamera() {
             const count = selectedShapes.length;
+            // 配合動態間距，調整攝影機的最佳觀看距離
             if (isUnfolded) {
-                if (count === 1) camera.position.set(0, 15, 0);
-                else if (count === 2) camera.position.set(0, 25, 0);
-                else camera.position.set(0, 36, 0); 
+                if (count === 1) camera.position.set(0, 20, 0);
+                else if (count === 2) camera.position.set(0, 35, 0);
+                else camera.position.set(0, 50, 0); 
             } else {
-                if (count === 1) camera.position.set(6, 6, 9);
-                else if (count === 2) camera.position.set(8, 7, 12);
-                else camera.position.set(10, 8, 15);
+                if (count === 1) camera.position.set(8, 6, 10);
+                else if (count === 2) camera.position.set(12, 8, 15);
+                else camera.position.set(16, 12, 22);
             }
             controls.target.set(0, 0, 0);
             controls.update();
@@ -789,9 +810,9 @@
             if (sliceMode === 'y') {
                 slider.min = -0.5; slider.max = currentHeight + 0.5;
             } else if (sliceMode === 'z') {
-                slider.min = -baseSize - 0.5; slider.max = baseSize + 0.5;
+                slider.min = -currentBaseSize - 0.5; slider.max = currentBaseSize + 0.5;
             } else if (sliceMode === 'oblique') {
-                slider.min = -baseSize - 0.5; slider.max = currentHeight + baseSize + 0.5;
+                slider.min = -currentBaseSize - 0.5; slider.max = currentHeight + currentBaseSize + 0.5;
             }
 
             if (sliceValue > slider.max) { sliceValue = slider.max; slider.value = sliceValue; } 
@@ -902,8 +923,8 @@
                 unfoldBtn.style.opacity = '0.5';
                 
                 if (mode === 'y') { slider.min = -0.5; slider.max = currentHeight + 0.5; slider.value = currentHeight / 2; } 
-                else if (mode === 'z') { slider.min = -baseSize - 0.5; slider.max = baseSize + 0.5; slider.value = 0; } 
-                else if (mode === 'oblique') { slider.min = -baseSize - 0.5; slider.max = currentHeight + baseSize + 0.5; slider.value = currentHeight / 2; }
+                else if (mode === 'z') { slider.min = -currentBaseSize - 0.5; slider.max = currentBaseSize + 0.5; slider.value = 0; } 
+                else if (mode === 'oblique') { slider.min = -currentBaseSize - 0.5; slider.max = currentHeight + currentBaseSize + 0.5; slider.value = currentHeight / 2; }
                 sliceValue = parseFloat(slider.value);
             }
             updateShape();
@@ -950,10 +971,21 @@
         window.toggleGrid = function() { if (gridHelper) gridHelper.visible = document.getElementById('grid-toggle').checked; }
         window.toggleTransparency = function() { isTransparent = document.getElementById('xray-toggle').checked; updateShape(); }
         
+        // 高度調整事件
         document.getElementById('height-slider').addEventListener('input', function() { 
             currentHeight = parseFloat(this.value); 
+            document.getElementById('height-val').innerText = currentHeight.toFixed(1);
             updateSliceRange(); 
             updateShape(); 
+        });
+
+        // 闊度調整事件
+        document.getElementById('width-slider').addEventListener('input', function() { 
+            currentBaseSize = parseFloat(this.value); 
+            document.getElementById('width-val').innerText = currentBaseSize.toFixed(1);
+            updateSliceRange(); 
+            updateShape(); 
+            // 讓使用者自行透過滑鼠縮放視角，所以不在調整滑桿時重設攝影機
         });
         
         function onWindowResize() { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
