@@ -99,6 +99,14 @@
 
     <div id="loading">正在準備積木...</div>
 
+    <!-- 浮動按鈕區塊 -->
+    <div class="absolute top-4 right-4 pointer-events-auto z-20">
+        <button onclick="exportImage()" class="flex items-center gap-2 bg-white/95 backdrop-blur px-3 py-2 rounded-xl shadow-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600 transition text-gray-700 font-bold text-sm group" title="匯出純白背景且無網格的圖片">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="group-hover:stroke-blue-600"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+            <span class="hidden sm:inline">拍照匯出</span>
+        </button>
+    </div>
+
     <div class="absolute top-0 left-0 w-full h-full flex flex-col md:flex-row pointer-events-none">
         <div class="pointer-events-auto w-full md:w-80 bg-white/95 backdrop-blur-md shadow-2xl p-4 flex flex-col overflow-y-auto max-h-[45vh] md:max-h-full z-10 border-r border-white/50">
             <h1 class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 mb-4 text-center flex items-center justify-center gap-2 drop-shadow-sm">
@@ -106,7 +114,7 @@
             </h1>
             
             <!-- 1. 選擇立體 -->
-            <div class="bg-blue-50/80 p-3 rounded-xl border border-blue-100 mb-3 shadow-sm">
+            <div class="bg-blue-50/80 p-3 rounded-xl border border-blue-100 mb-3 shadow-sm flex-shrink-0">
                 <div class="flex items-center justify-between mb-2">
                     <h3 class="font-bold text-blue-800 text-xs uppercase tracking-wider flex items-center gap-1">
                         <span class="bg-blue-200 text-blue-700 px-1.5 py-0.5 rounded text-[10px]">1</span> 選擇立體
@@ -145,13 +153,13 @@
                 </div>
             </div>
 
-            <!-- 2. 數據與顯示區 -->
-            <div id="info-panel-container" class="bg-emerald-50/80 p-3 rounded-xl mb-3 border border-emerald-100 shadow-sm">
+            <!-- 數據與顯示區 -->
+            <div id="info-panel-container" class="bg-emerald-50/80 p-3 rounded-xl mb-3 border border-emerald-100 shadow-sm flex-shrink-0">
                 <!-- 由 JavaScript 填入 -->
             </div>
 
-            <!-- 3. 截面觀察 -->
-            <div class="bg-orange-50/80 p-3 rounded-xl mb-3 border border-orange-100 shadow-sm">
+            <!-- 2. 截面觀察 -->
+            <div class="bg-orange-50/80 p-3 rounded-xl mb-3 border border-orange-100 shadow-sm flex-shrink-0">
                 <h3 class="font-bold text-orange-800 text-xs mb-2 uppercase tracking-wider flex items-center gap-1">
                     <span class="bg-orange-200 text-orange-800 px-1.5 py-0.5 rounded text-[10px]">2</span> 截面觀察
                 </h3>
@@ -166,40 +174,82 @@
                 </div>
             </div>
 
-            <!-- 4. 展開與調整 -->
-            <div class="space-y-3 pb-4">
-                <button id="unfold-btn" class="btn-unfold w-full py-2.5 rounded-xl font-bold text-sm shadow-md flex items-center justify-center gap-2 transform active:scale-95" onclick="toggleUnfold()">
-                    <span id="unfold-text">展開成摺紙圖</span>
-                </button>
-
-                <div class="flex items-center gap-3 bg-gray-50 p-2.5 rounded-xl border border-gray-200">
-                    <div class="flex-1 flex flex-col gap-2">
-                        <!-- 高度調整 -->
-                        <div class="flex flex-col">
-                            <div class="flex justify-between items-baseline mb-0.5">
-                                <label class="text-[10px] text-gray-500 font-bold uppercase">高度</label>
-                                <span id="height-val" class="text-[9px] text-indigo-500 font-bold">2.5</span>
-                            </div>
-                            <input type="range" id="height-slider" min="1" max="5" step="0.1" value="2.5" class="w-full h-1.5 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-500">
-                        </div>
-                        <!-- 闊度調整 -->
-                        <div class="flex flex-col">
-                            <div class="flex justify-between items-baseline mb-0.5">
-                                <label class="text-[10px] text-gray-500 font-bold uppercase">闊度</label>
-                                <span id="width-val" class="text-[9px] text-indigo-500 font-bold">1.5</span>
-                            </div>
-                            <input type="range" id="width-slider" min="0.5" max="3" step="0.1" value="1.5" class="w-full h-1.5 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-500">
-                        </div>
+            <!-- 3. 圖形旋轉 -->
+            <div class="bg-purple-50/80 p-3 rounded-xl mb-3 border border-purple-100 shadow-sm flex-shrink-0">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="font-bold text-purple-800 text-xs uppercase tracking-wider flex items-center gap-1">
+                        <span class="bg-purple-200 text-purple-700 px-1.5 py-0.5 rounded text-[10px]">3</span> 圖形旋轉
+                    </h3>
+                    <button class="text-[10px] bg-white border border-purple-200 px-2 py-1 rounded hover:bg-purple-100 text-purple-600 font-bold transition shadow-sm" onclick="resetShapeRotation()">重設</button>
+                </div>
+                <div class="space-y-2 px-1">
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-bold text-red-500 w-6">X軸</span>
+                        <input type="range" id="rot-x" min="-180" max="180" value="0" class="flex-1 h-1.5 bg-red-200 rounded-lg appearance-none cursor-pointer accent-red-500" oninput="updateRotX(this.value)">
+                        <span id="rot-x-val" class="text-[10px] text-gray-600 w-8 text-right font-mono">0°</span>
                     </div>
-                    <div class="border-l pl-3 border-gray-300 flex flex-col justify-center gap-3 h-full">
-                        <label class="flex flex-col items-center cursor-pointer group">
-                            <span class="text-[10px] text-gray-500 font-bold mb-1 uppercase group-hover:text-indigo-600">網格</span>
-                            <input type="checkbox" id="grid-toggle" class="accent-indigo-500 w-4 h-4 cursor-pointer" checked onchange="toggleGrid()">
-                        </label>
-                        <label class="flex flex-col items-center cursor-pointer group">
-                            <span class="text-[10px] text-gray-500 font-bold mb-1 uppercase group-hover:text-indigo-600">透視</span>
-                            <input type="checkbox" id="xray-toggle" class="accent-indigo-500 w-4 h-4 cursor-pointer" onchange="toggleTransparency()">
-                        </label>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-bold text-green-500 w-6">Y軸</span>
+                        <input type="range" id="rot-y" min="-180" max="180" value="0" class="flex-1 h-1.5 bg-green-200 rounded-lg appearance-none cursor-pointer accent-green-500" oninput="updateRotY(this.value)">
+                        <span id="rot-y-val" class="text-[10px] text-gray-600 w-8 text-right font-mono">0°</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-bold text-blue-500 w-6">Z軸</span>
+                        <input type="range" id="rot-z" min="-180" max="180" value="0" class="flex-1 h-1.5 bg-blue-200 rounded-lg appearance-none cursor-pointer accent-blue-500" oninput="updateRotZ(this.value)">
+                        <span id="rot-z-val" class="text-[10px] text-gray-600 w-8 text-right font-mono">0°</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. 展開與調整 -->
+            <div class="bg-gray-50/90 p-3 rounded-xl border border-gray-200 shadow-sm flex-shrink-0 mb-4">
+                <h3 class="font-bold text-gray-700 text-xs uppercase tracking-wider flex items-center gap-1 mb-3">
+                    <span class="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[10px]">4</span> 外觀調整與展開
+                </h3>
+                <div class="space-y-3 pb-2">
+                    <button id="unfold-btn" class="btn-unfold w-full py-2.5 rounded-xl font-bold text-sm shadow-md flex items-center justify-center gap-2 transform active:scale-95" onclick="toggleUnfold()">
+                        <span id="unfold-text">展開成摺紙圖</span>
+                    </button>
+
+                    <div class="flex items-center gap-3 bg-white p-2.5 rounded-xl border border-gray-100">
+                        <div class="flex-1 flex flex-col gap-2">
+                            <!-- 高度調整 -->
+                            <div class="flex flex-col">
+                                <div class="flex justify-between items-baseline mb-0.5">
+                                    <label class="text-[10px] text-gray-500 font-bold uppercase">高度</label>
+                                    <span id="height-val" class="text-[9px] text-indigo-500 font-bold">2.5</span>
+                                </div>
+                                <input type="range" id="height-slider" min="1" max="5" step="0.1" value="2.5" class="w-full h-1.5 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+                            </div>
+                            <!-- 闊度調整 -->
+                            <div class="flex flex-col">
+                                <div class="flex justify-between items-baseline mb-0.5">
+                                    <label class="text-[10px] text-gray-500 font-bold uppercase">闊度</label>
+                                    <span id="width-val" class="text-[9px] text-indigo-500 font-bold">1.5</span>
+                                </div>
+                                <input type="range" id="width-slider" min="0.5" max="3" step="0.1" value="1.5" class="w-full h-1.5 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+                            </div>
+                        </div>
+                        
+                        <!-- 顯示設定開關 -->
+                        <div class="border-l pl-3 border-gray-200 flex flex-col justify-center gap-2 h-full">
+                            <div class="flex gap-3 justify-center">
+                                <label class="flex flex-col items-center cursor-pointer group">
+                                    <span class="text-[10px] text-gray-500 font-bold mb-1 uppercase group-hover:text-indigo-600">網格</span>
+                                    <input type="checkbox" id="grid-toggle" class="accent-indigo-500 w-4 h-4 cursor-pointer" checked onchange="toggleGrid()">
+                                </label>
+                                <label class="flex flex-col items-center cursor-pointer group" title="鏡頭自動環繞圖形">
+                                    <span class="text-[10px] text-gray-500 font-bold mb-1 uppercase group-hover:text-indigo-600">自動環視</span>
+                                    <input type="checkbox" id="rotate-toggle" class="accent-indigo-500 w-4 h-4 cursor-pointer" checked onchange="toggleAutoOrbit()">
+                                </label>
+                            </div>
+                            <div class="flex justify-center">
+                                <label class="flex flex-col items-center cursor-pointer group">
+                                    <span class="text-[10px] text-gray-500 font-bold mb-1 uppercase group-hover:text-indigo-600">透視</span>
+                                    <input type="checkbox" id="xray-toggle" class="accent-indigo-500 w-4 h-4 cursor-pointer" onchange="toggleTransparency()">
+                                </label>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -219,13 +269,16 @@
         let isCompareMode = false;
         
         let currentHeight = 2.5;
-        let currentBaseSize = 1.5; // 闊度(半徑)
+        let currentBaseSize = 1.5; 
+        
+        let rotX = 0, rotY = 0, rotZ = 0; // 圖形獨立旋轉角度
         
         let isTransparent = false;
         let isUnfolded = false;
         let sliceMode = 'none';
         let sliceValue = 0;
         let clipPlane;
+        let globalCapMesh; // 獨立的全域截面封口
         
         const shapeColor = 0x60a5fa; 
         const edgeColor = 0x1e3a8a;
@@ -254,7 +307,8 @@
 
             camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
             
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            // 加入 preserveDrawingBuffer: true 確保能夠正確擷取圖片
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(window.devicePixelRatio);
             renderer.capabilities.logarithmicDepthBuffer = true;
@@ -279,9 +333,27 @@
             controls.dampingFactor = 0.05;
             controls.autoRotate = true;
             controls.autoRotateSpeed = 1.0;
-            controls.addEventListener('start', () => { controls.autoRotate = false; });
+            
+            controls.addEventListener('start', () => { 
+                controls.autoRotate = false; 
+                const rotateToggle = document.getElementById('rotate-toggle');
+                if(rotateToggle) rotateToggle.checked = false;
+            });
 
             clipPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
+            
+            // 建立全域截面封口 (利用 stencil buffer)
+            const capMat = new THREE.MeshBasicMaterial({ 
+                color: sectionColor, 
+                side: THREE.DoubleSide, 
+                stencilWrite: true, 
+                stencilFunc: THREE.EqualStencilFunc, 
+                stencilRef: 1 
+            });
+            globalCapMesh = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), capMat);
+            globalCapMesh.visible = false;
+            globalCapMesh.renderOrder = 1; 
+            scene.add(globalCapMesh);
 
             mainGroup = new THREE.Group();
             scene.add(mainGroup);
@@ -300,7 +372,6 @@
             animate();
         }
 
-        // 面數標籤 Sprite (橘黃色圓形)
         function createTextSprite(text, planes = []) {
             const canvas = document.createElement('canvas');
             canvas.width = 128;
@@ -334,16 +405,14 @@
             return sprite;
         }
 
-        // 部分名稱標籤 Sprite (紫色圓角長方形)
         function createPartNameSprite(text, planes = []) {
             const canvas = document.createElement('canvas');
             canvas.width = 256;
             canvas.height = 128;
             const ctx = canvas.getContext('2d');
 
-            ctx.fillStyle = '#8b5cf6'; // Purple background to match UI
+            ctx.fillStyle = '#8b5cf6';
             
-            // Draw a rounded rectangle manually to ensure browser compatibility
             const r = 34, x = 28, y = 30, w = 200, h = 68;
             ctx.beginPath();
             ctx.moveTo(x + r, y);
@@ -375,7 +444,7 @@
                 clippingPlanes: planes
             });
             const sprite = new THREE.Sprite(material);
-            sprite.scale.set(1.4, 0.7, 1); // Aspect ratio matches the wider canvas
+            sprite.scale.set(1.4, 0.7, 1);
             sprite.userData.isPartName = true;
             return sprite;
         }
@@ -450,9 +519,11 @@
                     let skip = false;
                     
                     if(type.includes('cylinder') || type === 'sphere') skip = true;
-                    else if (type === 'cone') { if (!isAxis || y < 0.1) skip = true; }
+                    // Cone: 頂點(尖端)在 y>0，底面中心在 y<0
+                    else if (type === 'cone') { if (!isAxis || y < 0) skip = true; }
                     else if(type.includes('Prism') && isAxis) skip = true; 
-                    else if(type.includes('Pyramid')) { if (isAxis && Math.abs(y) < 0.1) skip = true; }
+                    // Pyramid: 頂端在 y>0，底面中心在 y<0
+                    else if(type.includes('Pyramid')) { if (isAxis && y < 0) skip = true; }
 
                     if(!skip) {
                         const key = `${Math.round(x*100)},${Math.round(y*100)},${Math.round(z*100)}`;
@@ -482,12 +553,14 @@
             mesh.userData.shapeType = type;
             group.add(mesh);
             
-            const stencilMat = new THREE.MeshBasicMaterial({ color: 0, side: THREE.BackSide, clippingPlanes: [clipPlane], colorWrite:false, depthWrite:false, stencilWrite:true, stencilFunc:THREE.AlwaysStencilFunc, stencilFail:THREE.KeepStencilOp, stencilZFail:THREE.KeepStencilOp, stencilZPass:THREE.IncrementStencilOp });
+            // Stencil 寫入層，跟隨圖形旋轉
+            const stencilMat = new THREE.MeshBasicMaterial({ 
+                color: 0, side: THREE.BackSide, clippingPlanes: [clipPlane], 
+                colorWrite: false, depthWrite: false, 
+                stencilWrite: true, stencilFunc: THREE.AlwaysStencilFunc, 
+                stencilFail: THREE.KeepStencilOp, stencilZFail: THREE.KeepStencilOp, stencilZPass: THREE.IncrementStencilOp 
+            });
             group.add(new THREE.Mesh(geometry, stencilMat));
-            
-            const capMat = new THREE.MeshBasicMaterial({ color: sectionColor, side: THREE.DoubleSide, stencilWrite:true, stencilFunc:THREE.EqualStencilFunc, stencilRef:1 });
-            const cap = new THREE.Mesh(new THREE.PlaneGeometry(50,50), capMat);
-            cap.userData.isCap=true; alignCapToPlane(cap, clipPlane); group.add(cap);
             
             if(type !== 'sphere') {
                 const edges = createThickEdges(geometry, edgeColor);
@@ -498,13 +571,6 @@
             }
             return group;
         }
-
-        function alignCapToPlane(mesh, plane) {
-            const normal = plane.normal.clone();
-            const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,0,1), normal);
-            mesh.setRotationFromQuaternion(quaternion);
-            mesh.position.copy(normal.clone().multiplyScalar(-plane.constant));
-        }
         
         function updateClipPlane() {
             let normal = new THREE.Vector3(0, -1, 0); 
@@ -512,6 +578,13 @@
             else if (sliceMode === 'oblique') normal.set(0, -1, -1).normalize();
             clipPlane.normal.copy(normal);
             clipPlane.constant = sliceValue; 
+            
+            // 對齊全域截面封口
+            if (globalCapMesh) {
+                const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,0,1), normal);
+                globalCapMesh.setRotationFromQuaternion(quaternion);
+                globalCapMesh.position.copy(normal.clone().multiplyScalar(-clipPlane.constant));
+            }
         }
 
         function addSolidLabels(group, type, r, h, nSides, isCurved, planes) {
@@ -519,20 +592,20 @@
             
             if (type === 'sphere') {
                 const sprite = createTextSprite(1, planes);
-                sprite.position.set(0, r * 2 + offset, 0); 
+                sprite.position.set(0, r + offset, 0); 
                 group.add(sprite);
             } else if (type.includes('Prism') || type === 'cylinder') {
                 const topSprite = createTextSprite(1, planes);
-                topSprite.position.set(0, h + offset, 0);
+                topSprite.position.set(0, h/2 + offset, 0);
                 group.add(topSprite);
                 
                 const bottomSprite = createTextSprite(2, planes);
-                bottomSprite.position.set(0, -offset, 0);
+                bottomSprite.position.set(0, -h/2 - offset, 0);
                 group.add(bottomSprite);
                 
                 if (isCurved) {
                     const sideSprite = createTextSprite(3, planes);
-                    sideSprite.position.set(0, h/2, r + offset);
+                    sideSprite.position.set(0, 0, r + offset);
                     group.add(sideSprite);
                 } else {
                     const apothem = r * Math.cos(Math.PI / nSides);
@@ -542,19 +615,19 @@
                         const sprite = createTextSprite(3 + i, planes);
                         const px = (apothem + offset) * Math.sin(theta); 
                         const pz = (apothem + offset) * Math.cos(theta);
-                        sprite.position.set(px, h/2, pz);
+                        sprite.position.set(px, 0, pz);
                         group.add(sprite);
                     }
                 }
             } else if (type.includes('Pyramid') || type === 'cone') {
                 const bottomSprite = createTextSprite(1, planes);
-                bottomSprite.position.set(0, -offset, 0);
+                bottomSprite.position.set(0, -h/2 - offset, 0);
                 group.add(bottomSprite);
                 
                 if (isCurved) {
                     const sideSprite = createTextSprite(2, planes);
                     const currentRadius = r * (2/3);
-                    sideSprite.position.set(0, h/3, currentRadius + offset * 1.5); 
+                    sideSprite.position.set(0, 0, currentRadius + offset * 1.5); 
                     group.add(sideSprite);
                 } else {
                     const apothem = r * Math.cos(Math.PI / nSides);
@@ -565,55 +638,51 @@
                         const baseDist = (apothem * 2/3) + offset;
                         const px = baseDist * Math.sin(theta);
                         const pz = baseDist * Math.cos(theta);
-                        sprite.position.set(px, h/3 + offset/2, pz);
+                        sprite.position.set(px, 0, pz);
                         group.add(sprite);
                     }
                 }
             }
         }
 
-        // 為立體圖形添加「各部分名稱」標籤
         function addPartNameLabels(group, type, r, h, nSides, isCurved, planes) {
-            // 這個偏移量比數字標籤大，避免重疊
             const offset = 0.6; 
 
             if (type === 'sphere') {
                 const sprite = createPartNameSprite('曲面', planes);
-                sprite.position.set(0, r * 2 + offset, 0);
+                sprite.position.set(0, r + offset, 0);
                 group.add(sprite);
             } else if (type.includes('Prism') || type === 'cylinder') {
                 const topSprite = createPartNameSprite('底', planes);
-                topSprite.position.set(0, h + offset, 0);
+                topSprite.position.set(0, h/2 + offset, 0);
                 group.add(topSprite);
 
                 const bottomSprite = createPartNameSprite('底', planes);
-                bottomSprite.position.set(0, -offset, 0);
+                bottomSprite.position.set(0, -h/2 - offset, 0);
                 group.add(bottomSprite);
 
                 if (isCurved) {
                     const sideSprite = createPartNameSprite('曲面', planes);
-                    // 稍微移高一點以錯開數字
-                    sideSprite.position.set(0, h/2 + 0.4, r + offset);
+                    sideSprite.position.set(0, 0.4, r + offset);
                     group.add(sideSprite);
                 } else {
-                    // 為了畫面乾淨，只在第一面標示「側面」即可
                     const apothem = r * Math.cos(Math.PI / nSides);
                     const theta = Math.PI / nSides;
                     const px = (apothem + offset) * Math.sin(theta);
                     const pz = (apothem + offset) * Math.cos(theta);
                     const sprite = createPartNameSprite('側面', planes);
-                    sprite.position.set(px, h/2 + 0.4, pz);
+                    sprite.position.set(px, 0.4, pz);
                     group.add(sprite);
                 }
             } else if (type.includes('Pyramid') || type === 'cone') {
                 const bottomSprite = createPartNameSprite('底', planes);
-                bottomSprite.position.set(0, -offset, 0);
+                bottomSprite.position.set(0, -h/2 - offset, 0);
                 group.add(bottomSprite);
 
                 if (isCurved) {
                     const sideSprite = createPartNameSprite('曲面', planes);
                     const currentRadius = r * (2/3);
-                    sideSprite.position.set(0, h/3 + 0.4, currentRadius + offset * 1.5);
+                    sideSprite.position.set(0, 0.4, currentRadius + offset * 1.5);
                     group.add(sideSprite);
                 } else {
                     const apothem = r * Math.cos(Math.PI / nSides);
@@ -622,7 +691,7 @@
                     const px = baseDist * Math.sin(theta);
                     const pz = baseDist * Math.cos(theta);
                     const sprite = createPartNameSprite('側面', planes);
-                    sprite.position.set(px, h/3 + offset/2 + 0.4, pz);
+                    sprite.position.set(px, 0.4, pz);
                     group.add(sprite);
                 }
             }
@@ -639,13 +708,10 @@
             let geo;
             if (type === 'sphere') {
                 geo = new THREE.SphereGeometry(r, 64, 64);
-                geo.translate(0, r, 0);
             } else if (type.includes('Prism') || type === 'cylinder') {
                 geo = new THREE.CylinderGeometry(r, r, h, isCurved ? 64 : nSides);
-                geo.translate(0, h/2, 0);
             } else {
                 geo = new THREE.ConeGeometry(r, h, isCurved ? 64 : nSides);
-                geo.translate(0, h/2, 0);
             }
 
             if (type.includes('rect')) geo.rotateY(Math.PI/4);
@@ -665,7 +731,7 @@
             const labelGroup = new THREE.Group();
             labelGroup.userData.isLabelGroup = true;
             addSolidLabels(labelGroup, type, r, h, nSides, isCurved, planes);
-            addPartNameLabels(labelGroup, type, r, h, nSides, isCurved, planes); // 加入名稱標籤
+            addPartNameLabels(labelGroup, type, r, h, nSides, isCurved, planes); 
             rootGroup.add(labelGroup);
 
             return rootGroup;
@@ -714,7 +780,6 @@
                     sprite.position.set(0, 0, labelOffset);
                     planeMesh.add(sprite);
 
-                    // 在中間的面板上標示「側面」或「曲面」
                     if (i === midIndex) {
                         const partName = isCurved ? '曲面' : '側面';
                         const partSprite = createPartNameSprite(partName);
@@ -792,7 +857,6 @@
                         sprite.position.set(0, slantHeight / 3, labelOffset); 
                         triMesh.add(sprite);
                         
-                        // 只在其中一面標示「側面」
                         if (i === midTri) {
                             const partSprite = createPartNameSprite('側面');
                             partSprite.position.set(0, slantHeight / 3 - 0.5, labelOffset + 0.01);
@@ -844,6 +908,32 @@
             return root;
         }
 
+        // 旋轉控制函式
+        window.updateRotX = function(val) { rotX = parseInt(val); document.getElementById('rot-x-val').innerText = rotX + '°'; applyShapeRotation(); }
+        window.updateRotY = function(val) { rotY = parseInt(val); document.getElementById('rot-y-val').innerText = rotY + '°'; applyShapeRotation(); }
+        window.updateRotZ = function(val) { rotZ = parseInt(val); document.getElementById('rot-z-val').innerText = rotZ + '°'; applyShapeRotation(); }
+        
+        window.resetShapeRotation = function() {
+            rotX = 0; rotY = 0; rotZ = 0;
+            document.getElementById('rot-x').value = 0; document.getElementById('rot-x-val').innerText = '0°';
+            document.getElementById('rot-y').value = 0; document.getElementById('rot-y-val').innerText = '0°';
+            document.getElementById('rot-z').value = 0; document.getElementById('rot-z-val').innerText = '0°';
+            applyShapeRotation();
+        }
+        
+        function applyShapeRotation() {
+            mainGroup.children.forEach(wrapper => {
+                const pivotGroup = wrapper.children[0];
+                if (pivotGroup && pivotGroup.userData.isPivot) {
+                    pivotGroup.rotation.set(
+                        THREE.MathUtils.degToRad(rotX),
+                        THREE.MathUtils.degToRad(rotY),
+                        THREE.MathUtils.degToRad(rotZ)
+                    );
+                }
+            });
+        }
+
         function updateShape() {
             mainGroup.clear();
             if(sliceMode !== 'none') updateClipPlane();
@@ -859,14 +949,33 @@
 
             selectedShapes.forEach((type, index) => {
                 let meshOrGroup;
+                const wrapper = new THREE.Group();
+                wrapper.position.x = startX + index * spacing;
+                
+                const pivotGroup = new THREE.Group();
+                pivotGroup.userData.isPivot = true; 
+                
                 if (isUnfolded && sliceMode === 'none') {
                     meshOrGroup = createFlatNet(type, currentBaseSize, currentHeight);
+                    wrapper.position.y = 0;
                 } else {
                     meshOrGroup = createSolidMesh(type, currentBaseSize, currentHeight);
+                    // 為了旋轉時能依據圖形幾何中心旋轉，將其置中，再透過 wrapper 抬升回地面
+                    const offsetY = (type === 'sphere') ? currentBaseSize : (currentHeight / 2);
+                    wrapper.position.y = offsetY; 
                 }
                 
-                meshOrGroup.position.x = startX + index * spacing;
-                mainGroup.add(meshOrGroup);
+                pivotGroup.add(meshOrGroup);
+                
+                // 套用使用者獨立旋轉
+                pivotGroup.rotation.set(
+                    THREE.MathUtils.degToRad(rotX),
+                    THREE.MathUtils.degToRad(rotY),
+                    THREE.MathUtils.degToRad(rotZ)
+                );
+                
+                wrapper.add(pivotGroup);
+                mainGroup.add(wrapper);
             });
             
             updateVisibility();
@@ -1063,6 +1172,7 @@
             
             if (mode === 'none') {
                 sliderContainer.classList.add('hidden');
+                if (globalCapMesh) globalCapMesh.visible = false;
                 updateShapeSelectionUI(); 
             } else {
                 sliderContainer.classList.remove('hidden');
@@ -1071,6 +1181,8 @@
                 if(unfoldTxt) unfoldTxt.innerText = "截面模式中無法展開";
                 unfoldBtn.style.opacity = '0.5';
                 
+                if (globalCapMesh) globalCapMesh.visible = true;
+
                 if (mode === 'y') { slider.min = -0.5; slider.max = currentHeight + 0.5; slider.value = currentHeight / 2; } 
                 else if (mode === 'z') { slider.min = -currentBaseSize - 0.5; slider.max = currentBaseSize + 0.5; slider.value = 0; } 
                 else if (mode === 'oblique') { slider.min = -currentBaseSize - 0.5; slider.max = currentHeight + currentBaseSize + 0.5; slider.value = currentHeight / 2; }
@@ -1124,6 +1236,41 @@
 
         window.toggleGrid = function() { if (gridHelper) gridHelper.visible = document.getElementById('grid-toggle').checked; }
         window.toggleTransparency = function() { isTransparent = document.getElementById('xray-toggle').checked; updateShape(); }
+        
+        // 鏡頭環視開關
+        window.toggleAutoOrbit = function() {
+            if (controls) {
+                controls.autoRotate = document.getElementById('rotate-toggle').checked;
+            }
+        }
+        
+        // 匯出純白無網格圖片功能
+        window.exportImage = function() {
+            // 1. 記錄當前狀態
+            const originalBackground = scene.background;
+            const originalGridVisible = gridHelper ? gridHelper.visible : false;
+            
+            // 2. 設定匯出狀態 (純白背景，隱藏網格)
+            scene.background = new THREE.Color(0xffffff);
+            if (gridHelper) gridHelper.visible = false;
+            
+            // 3. 強制渲染一幀以套用新設定
+            renderer.render(scene, camera);
+            
+            // 4. 擷取圖片資料
+            const dataURL = renderer.domElement.toDataURL('image/png');
+            
+            // 5. 建立下載連結並觸發
+            const link = document.createElement('a');
+            link.download = '神奇立體圖形.png';
+            link.href = dataURL;
+            link.click();
+            
+            // 6. 恢復原始狀態
+            scene.background = originalBackground;
+            if (gridHelper) gridHelper.visible = originalGridVisible;
+            renderer.render(scene, camera);
+        };
         
         document.getElementById('height-slider').addEventListener('input', function() { 
             currentHeight = parseFloat(this.value); 
