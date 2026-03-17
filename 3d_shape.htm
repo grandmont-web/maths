@@ -983,8 +983,8 @@
                     <h2 class="text-center font-bold text-emerald-800 mb-2 border-b border-emerald-200 pb-1 text-sm">${data.name}</h2>
                     <div class="flex justify-between mb-3 px-1">
                         <div class="stat-badge">面 <span class="stat-value">${data.faces}</span></div>
-                        <div class="stat-badge">棱 <span class="stat-value">${data.edges}</span></div>
-                        <div class="stat-badge">頂 <span class="stat-value">${data.vertices}</span></div>
+                        <div class="stat-badge">稜 <span class="stat-value">${data.edges}</span></div>
+                        <div class="stat-badge">頂點 <span class="stat-value">${data.vertices}</span></div>
                     </div>
                 `;
             } else {
@@ -996,7 +996,7 @@
                                 <tr>
                                     <th class="p-1.5 border-b border-emerald-100">圖形</th>
                                     <th class="p-1.5 border-b border-emerald-100">面</th>
-                                    <th class="p-1.5 border-b border-emerald-100">棱</th>
+                                    <th class="p-1.5 border-b border-emerald-100">稜</th>
                                     <th class="p-1.5 border-b border-emerald-100">頂點</th>
                                 </tr>
                             </thead>
@@ -1026,7 +1026,7 @@
                         </label>
                         <label class="flex items-center space-x-1 cursor-pointer select-none hover:bg-emerald-50 p-1 rounded transition">
                             <input type="checkbox" id="show-edges" class="feature-checkbox" ${showEdgesChecked ? 'checked' : ''} onchange="updateVisibility()">
-                            <span class="text-xs font-bold text-gray-700">棱</span>
+                            <span class="text-xs font-bold text-gray-700">稜</span>
                         </label>
                         <label class="flex items-center space-x-1 cursor-pointer select-none hover:bg-emerald-50 p-1 rounded transition">
                             <input type="checkbox" id="show-vertices" class="feature-checkbox" ${showVerticesChecked ? 'checked' : ''} onchange="updateVisibility()">
