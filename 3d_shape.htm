@@ -61,13 +61,14 @@
         }
 
         .btn-slice {
-            padding: 4px 8px;
-            font-size: 0.85rem;
+            padding: 4px 2px;
+            font-size: 0.8rem;
             border-radius: 6px;
             background-color: white;
             border: 1px solid #fed7aa;
             color: #9a3412;
             transition: all 0.2s;
+            white-space: nowrap;
         }
         .btn-slice:hover { background-color: #fff7ed; }
         .btn-slice.active {
@@ -163,8 +164,9 @@
                 <h3 class="font-bold text-orange-800 text-xs mb-2 uppercase tracking-wider flex items-center gap-1">
                     <span class="bg-orange-200 text-orange-800 px-1.5 py-0.5 rounded text-[10px]">2</span> 截面觀察
                 </h3>
-                <div class="flex justify-between gap-1.5 mb-2">
+                <div class="flex justify-between gap-1 mb-2">
                     <button class="btn-slice active flex-1" onclick="setSliceMode('none')">無</button>
+                    <button class="btn-slice flex-1" onclick="setSliceMode('parallel')">平行底</button>
                     <button class="btn-slice flex-1" onclick="setSliceMode('y')">橫切</button>
                     <button class="btn-slice flex-1" onclick="setSliceMode('z')">直切</button>
                     <button class="btn-slice flex-1" onclick="setSliceMode('oblique')">斜切</button>
@@ -277,9 +279,10 @@
         let isUnfolded = false;
         let sliceMode = 'none';
         let sliceValue = 0;
-        let clipPlane;
-        let globalCapMesh; // 獨立的全域截面封口
         
+        // 分離各個圖形的截面與封口資料
+        let shapeSlices = []; 
+
         const shapeColor = 0x60a5fa; 
         const edgeColor = 0x1e3a8a;
         const vertexColor = 0xff0000;
@@ -307,7 +310,6 @@
 
             camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
             
-            // 加入 preserveDrawingBuffer: true 確保能夠正確擷取圖片
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(window.devicePixelRatio);
@@ -339,21 +341,6 @@
                 const rotateToggle = document.getElementById('rotate-toggle');
                 if(rotateToggle) rotateToggle.checked = false;
             });
-
-            clipPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
-            
-            // 建立全域截面封口 (利用 stencil buffer)
-            const capMat = new THREE.MeshBasicMaterial({ 
-                color: sectionColor, 
-                side: THREE.DoubleSide, 
-                stencilWrite: true, 
-                stencilFunc: THREE.EqualStencilFunc, 
-                stencilRef: 1 
-            });
-            globalCapMesh = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), capMat);
-            globalCapMesh.visible = false;
-            globalCapMesh.renderOrder = 1; 
-            scene.add(globalCapMesh);
 
             mainGroup = new THREE.Group();
             scene.add(mainGroup);
@@ -496,6 +483,8 @@
                 side: THREE.DoubleSide, transparent: isTransparent, opacity: isTransparent ? 0.3 : 1.0,
                 depthWrite: !isTransparent, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1
             });
+            if (options.clippingPlanes) material.clippingPlanes = options.clippingPlanes;
+
             const mesh = new THREE.Mesh(geometry, material);
             mesh.userData.isFace = true; 
             mesh.userData.shapeType = type;
@@ -519,10 +508,8 @@
                     let skip = false;
                     
                     if(type.includes('cylinder') || type === 'sphere') skip = true;
-                    // Cone: 頂點(尖端)在 y>0，底面中心在 y<0
                     else if (type === 'cone') { if (!isAxis || y < 0) skip = true; }
                     else if(type.includes('Prism') && isAxis) skip = true; 
-                    // Pyramid: 頂端在 y>0，底面中心在 y<0
                     else if(type.includes('Pyramid')) { if (isAxis && y < 0) skip = true; }
 
                     if(!skip) {
@@ -541,23 +528,24 @@
             return mesh;
         }
 
-        function createSolidWithSection(type, geometry, showVertices) {
+        function createSolidWithSection(type, geometry, showVertices, planes, stencilRef) {
             const group = new THREE.Group();
             const mat = new THREE.MeshPhongMaterial({
                 color: shapeColor, shininess: 60, specular: 0x444444,
                 flatShading: !(type.includes('cylinder')||type==='sphere'||type==='cone'),
-                side: THREE.DoubleSide, clippingPlanes: [clipPlane]
+                side: THREE.DoubleSide, clippingPlanes: planes
             });
             const mesh = new THREE.Mesh(geometry, mat);
             mesh.userData.isFace = true; 
             mesh.userData.shapeType = type;
             group.add(mesh);
             
-            // Stencil 寫入層，跟隨圖形旋轉
+            // Stencil 寫入層，跟隨圖形旋轉並指定各立體獨立的 Reference
             const stencilMat = new THREE.MeshBasicMaterial({ 
-                color: 0, side: THREE.BackSide, clippingPlanes: [clipPlane], 
+                color: 0, side: THREE.BackSide, clippingPlanes: planes, 
                 colorWrite: false, depthWrite: false, 
                 stencilWrite: true, stencilFunc: THREE.AlwaysStencilFunc, 
+                stencilRef: stencilRef,
                 stencilFail: THREE.KeepStencilOp, stencilZFail: THREE.KeepStencilOp, stencilZPass: THREE.IncrementStencilOp 
             });
             group.add(new THREE.Mesh(geometry, stencilMat));
@@ -565,26 +553,48 @@
             if(type !== 'sphere') {
                 const edges = createThickEdges(geometry, edgeColor);
                 edges.traverse(c=>{
-                    if(c.isMesh) { c.material.clippingPlanes=[clipPlane]; c.userData.shapeType = type; }
+                    if(c.isMesh) { c.material.clippingPlanes=planes; c.userData.shapeType = type; }
                 });
                 group.add(edges);
             }
             return group;
         }
         
-        function updateClipPlane() {
-            let normal = new THREE.Vector3(0, -1, 0); 
-            if (sliceMode === 'z') normal.set(0, 0, -1);
-            else if (sliceMode === 'oblique') normal.set(0, -1, -1).normalize();
-            clipPlane.normal.copy(normal);
-            clipPlane.constant = sliceValue; 
+        // 更新所有截面 (依據立體的旋轉角度與位置)
+        function updateClipPlanes() {
+            if (sliceMode === 'none') return;
             
-            // 對齊全域截面封口
-            if (globalCapMesh) {
-                const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,0,1), normal);
-                globalCapMesh.setRotationFromQuaternion(quaternion);
-                globalCapMesh.position.copy(normal.clone().multiplyScalar(-clipPlane.constant));
-            }
+            // 強制更新矩陣，確保取得最新的世界座標與旋轉角度
+            scene.updateMatrixWorld(true);
+
+            shapeSlices.forEach(slice => {
+                if (sliceMode === 'parallel') {
+                    // 平行於底: 局部法線為 (0, -1, 0)，往下的方向，保留底層。局部截面高度就是 sliceValue。
+                    const localPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), sliceValue);
+                    
+                    // 利用立體的矩陣，將局部平面轉換到世界座標
+                    slice.plane.copy(localPlane).applyMatrix4(slice.pivotGroup.matrixWorld);
+                    
+                    // 設定封口的面相與位置
+                    slice.capMesh.setRotationFromQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), slice.plane.normal));
+                    
+                    // 找出該截面中心在世界座標中的位置
+                    const pointOnPlane = new THREE.Vector3(0, sliceValue, 0).applyMatrix4(slice.pivotGroup.matrixWorld);
+                    slice.capMesh.position.copy(pointOnPlane);
+                    
+                } else {
+                    // 世界座標模式下的截斷
+                    let normal = new THREE.Vector3(0, -1, 0); 
+                    if (sliceMode === 'z') normal.set(0, 0, -1);
+                    else if (sliceMode === 'oblique') normal.set(0, -1, -1).normalize();
+                    
+                    slice.plane.normal.copy(normal);
+                    slice.plane.constant = sliceValue; 
+                    
+                    slice.capMesh.setRotationFromQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal));
+                    slice.capMesh.position.copy(normal.clone().multiplyScalar(-sliceValue));
+                }
+            });
         }
 
         function addSolidLabels(group, type, r, h, nSides, isCurved, planes) {
@@ -697,7 +707,7 @@
             }
         }
 
-        function createSolidMesh(type, r, h) {
+        function createSolidMesh(type, r, h, planes = [], stencilRef = 1) {
             let nSides = 3;
             if (type.includes('rect')) nSides = 4;
             if (type.includes('pent')) nSides = 5;
@@ -718,9 +728,8 @@
             if (!isCurved && type !== 'sphere') geo.rotateY(Math.PI/2 - Math.PI/nSides);
 
             let meshOrGroup;
-            const planes = sliceMode !== 'none' ? [clipPlane] : [];
             if (sliceMode !== 'none') {
-                meshOrGroup = createSolidWithSection(type, geo, !isCurved);
+                meshOrGroup = createSolidWithSection(type, geo, !isCurved, planes, stencilRef);
             } else {
                 meshOrGroup = createFaceMesh(type, geo, { showVertices: !isCurved, showInternalEdges: !isCurved, flatShading: !isCurved });
             }
@@ -922,21 +931,26 @@
         }
         
         function applyShapeRotation() {
-            mainGroup.children.forEach(wrapper => {
-                const pivotGroup = wrapper.children[0];
-                if (pivotGroup && pivotGroup.userData.isPivot) {
-                    pivotGroup.rotation.set(
+            shapeSlices.forEach(slice => {
+                if (slice.pivotGroup) {
+                    slice.pivotGroup.rotation.set(
                         THREE.MathUtils.degToRad(rotX),
                         THREE.MathUtils.degToRad(rotY),
                         THREE.MathUtils.degToRad(rotZ)
                     );
                 }
             });
+            updateClipPlanes(); // 旋轉時同步更新「平行底」的截面位置
         }
 
         function updateShape() {
             mainGroup.clear();
-            if(sliceMode !== 'none') updateClipPlane();
+            
+            // 清理舊的截面與封口
+            shapeSlices.forEach(s => {
+                if(s.capMesh && s.capMesh.parent) s.capMesh.parent.remove(s.capMesh);
+            });
+            shapeSlices = [];
             
             let spacing = 5;
             if (isUnfolded) {
@@ -948,18 +962,23 @@
             const startX = -((selectedShapes.length - 1) * spacing) / 2;
 
             selectedShapes.forEach((type, index) => {
-                let meshOrGroup;
                 const wrapper = new THREE.Group();
                 wrapper.position.x = startX + index * spacing;
                 
                 const pivotGroup = new THREE.Group();
                 pivotGroup.userData.isPivot = true; 
                 
+                // 每一個立體都配發獨立的截面設定
+                const stencilRef = index + 1;
+                const plane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
+                const planesArray = sliceMode !== 'none' ? [plane] : [];
+
+                let meshOrGroup;
                 if (isUnfolded && sliceMode === 'none') {
                     meshOrGroup = createFlatNet(type, currentBaseSize, currentHeight);
                     wrapper.position.y = 0;
                 } else {
-                    meshOrGroup = createSolidMesh(type, currentBaseSize, currentHeight);
+                    meshOrGroup = createSolidMesh(type, currentBaseSize, currentHeight, planesArray, stencilRef);
                     // 為了旋轉時能依據圖形幾何中心旋轉，將其置中，再透過 wrapper 抬升回地面
                     const offsetY = (type === 'sphere') ? currentBaseSize : (currentHeight / 2);
                     wrapper.position.y = offsetY; 
@@ -976,9 +995,25 @@
                 
                 wrapper.add(pivotGroup);
                 mainGroup.add(wrapper);
+                
+                // 各立體獨立的全域截面封口
+                const capMat = new THREE.MeshBasicMaterial({ 
+                    color: sectionColor, 
+                    side: THREE.DoubleSide, 
+                    stencilWrite: true, 
+                    stencilFunc: THREE.EqualStencilFunc, 
+                    stencilRef: stencilRef 
+                });
+                const capMesh = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), capMat);
+                capMesh.visible = (sliceMode !== 'none');
+                capMesh.renderOrder = 1; 
+                scene.add(capMesh); // 必須放置於世界座標下
+
+                shapeSlices.push({ plane, capMesh, wrapper, pivotGroup });
             });
             
             updateVisibility();
+            updateClipPlanes(); // 建構完畢後立即計算平面位置
         }
 
         function resetCamera() {
@@ -1063,6 +1098,8 @@
                 slider.min = -currentBaseSize - 0.5; slider.max = currentBaseSize + 0.5;
             } else if (sliceMode === 'oblique') {
                 slider.min = -currentBaseSize - 0.5; slider.max = currentHeight + currentBaseSize + 0.5;
+            } else if (sliceMode === 'parallel') {
+                slider.min = -currentHeight/2 - 0.5; slider.max = currentHeight/2 + 0.5;
             }
 
             if (sliceValue > slider.max) { sliceValue = slider.max; slider.value = sliceValue; } 
@@ -1172,7 +1209,6 @@
             
             if (mode === 'none') {
                 sliderContainer.classList.add('hidden');
-                if (globalCapMesh) globalCapMesh.visible = false;
                 updateShapeSelectionUI(); 
             } else {
                 sliderContainer.classList.remove('hidden');
@@ -1181,17 +1217,22 @@
                 if(unfoldTxt) unfoldTxt.innerText = "截面模式中無法展開";
                 unfoldBtn.style.opacity = '0.5';
                 
-                if (globalCapMesh) globalCapMesh.visible = true;
-
+                // 設定各自的預設切面 Slider 值
                 if (mode === 'y') { slider.min = -0.5; slider.max = currentHeight + 0.5; slider.value = currentHeight / 2; } 
                 else if (mode === 'z') { slider.min = -currentBaseSize - 0.5; slider.max = currentBaseSize + 0.5; slider.value = 0; } 
                 else if (mode === 'oblique') { slider.min = -currentBaseSize - 0.5; slider.max = currentHeight + currentBaseSize + 0.5; slider.value = currentHeight / 2; }
+                else if (mode === 'parallel') { slider.min = -currentHeight/2 - 0.5; slider.max = currentHeight/2 + 0.5; slider.value = 0; }
+                
                 sliceValue = parseFloat(slider.value);
             }
             updateShape();
         }
         
-        document.getElementById('slice-slider').addEventListener('input', function() { sliceValue = parseFloat(this.value); updateShape(); });
+        // 修正：當拉桿滑動時，不須重建整個場景，只需即時運算更新截面位置即可
+        document.getElementById('slice-slider').addEventListener('input', function() { 
+            sliceValue = parseFloat(this.value); 
+            updateClipPlanes(); 
+        });
         
         function toggleUnfold() {
             isUnfolded = !isUnfolded;
@@ -1246,27 +1287,20 @@
         
         // 匯出純白無網格圖片功能
         window.exportImage = function() {
-            // 1. 記錄當前狀態
             const originalBackground = scene.background;
             const originalGridVisible = gridHelper ? gridHelper.visible : false;
             
-            // 2. 設定匯出狀態 (純白背景，隱藏網格)
             scene.background = new THREE.Color(0xffffff);
             if (gridHelper) gridHelper.visible = false;
             
-            // 3. 強制渲染一幀以套用新設定
             renderer.render(scene, camera);
-            
-            // 4. 擷取圖片資料
             const dataURL = renderer.domElement.toDataURL('image/png');
             
-            // 5. 建立下載連結並觸發
             const link = document.createElement('a');
             link.download = '神奇立體圖形.png';
             link.href = dataURL;
             link.click();
             
-            // 6. 恢復原始狀態
             scene.background = originalBackground;
             if (gridHelper) gridHelper.visible = originalGridVisible;
             renderer.render(scene, camera);
