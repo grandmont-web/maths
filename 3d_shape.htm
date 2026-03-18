@@ -166,7 +166,7 @@
                 </h3>
                 <div class="flex justify-between gap-1 mb-2">
                     <button class="btn-slice active flex-1" onclick="setSliceMode('none')">無</button>
-                    <button class="btn-slice flex-1" onclick="setSliceMode('parallel')">平行底</button>
+                    <button class="btn-slice flex-1" onclick="setSliceMode('parallel')">平行於底</button>
                     <button class="btn-slice flex-1" onclick="setSliceMode('y')">橫切</button>
                     <button class="btn-slice flex-1" onclick="setSliceMode('z')">直切</button>
                     <button class="btn-slice flex-1" onclick="setSliceMode('oblique')">斜切</button>
@@ -234,23 +234,15 @@
                         </div>
                         
                         <!-- 顯示設定開關 -->
-                        <div class="border-l pl-3 border-gray-200 flex flex-col justify-center gap-2 h-full">
-                            <div class="flex gap-3 justify-center">
-                                <label class="flex flex-col items-center cursor-pointer group">
-                                    <span class="text-[10px] text-gray-500 font-bold mb-1 uppercase group-hover:text-indigo-600">網格</span>
-                                    <input type="checkbox" id="grid-toggle" class="accent-indigo-500 w-4 h-4 cursor-pointer" checked onchange="toggleGrid()">
-                                </label>
-                                <label class="flex flex-col items-center cursor-pointer group" title="鏡頭自動環繞圖形">
-                                    <span class="text-[10px] text-gray-500 font-bold mb-1 uppercase group-hover:text-indigo-600">自動環視</span>
-                                    <input type="checkbox" id="rotate-toggle" class="accent-indigo-500 w-4 h-4 cursor-pointer" checked onchange="toggleAutoOrbit()">
-                                </label>
-                            </div>
-                            <div class="flex justify-center">
-                                <label class="flex flex-col items-center cursor-pointer group">
-                                    <span class="text-[10px] text-gray-500 font-bold mb-1 uppercase group-hover:text-indigo-600">透視</span>
-                                    <input type="checkbox" id="xray-toggle" class="accent-indigo-500 w-4 h-4 cursor-pointer" onchange="toggleTransparency()">
-                                </label>
-                            </div>
+                        <div class="border-l pl-3 border-gray-200 flex flex-col justify-center gap-3 h-full">
+                            <label class="flex flex-col items-center cursor-pointer group">
+                                <span class="text-[10px] text-gray-500 font-bold mb-1 uppercase group-hover:text-indigo-600">網格</span>
+                                <input type="checkbox" id="grid-toggle" class="accent-indigo-500 w-4 h-4 cursor-pointer" checked onchange="toggleGrid()">
+                            </label>
+                            <label class="flex flex-col items-center cursor-pointer group">
+                                <span class="text-[10px] text-gray-500 font-bold mb-1 uppercase group-hover:text-indigo-600">透視</span>
+                                <input type="checkbox" id="xray-toggle" class="accent-indigo-500 w-4 h-4 cursor-pointer" onchange="toggleTransparency()">
+                            </label>
                         </div>
                     </div>
                 </div>
@@ -333,14 +325,10 @@
             controls = new THREE.OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
             controls.dampingFactor = 0.05;
-            controls.autoRotate = true;
-            controls.autoRotateSpeed = 1.0;
             
-            controls.addEventListener('start', () => { 
-                controls.autoRotate = false; 
-                const rotateToggle = document.getElementById('rotate-toggle');
-                if(rotateToggle) rotateToggle.checked = false;
-            });
+            // 開啟自動環視功能 (背景執行，無 UI 設定)
+            controls.autoRotate = true;
+            controls.autoRotateSpeed = 1.0; 
 
             mainGroup = new THREE.Group();
             scene.add(mainGroup);
@@ -940,7 +928,7 @@
                     );
                 }
             });
-            updateClipPlanes(); // 旋轉時同步更新「平行底」的截面位置
+            updateClipPlanes(); // 旋轉時同步更新「平行於底」的截面位置
         }
 
         function updateShape() {
@@ -1228,7 +1216,7 @@
             updateShape();
         }
         
-        // 修正：當拉桿滑動時，不須重建整個場景，只需即時運算更新截面位置即可
+        // 當拉桿滑動時，不須重建整個場景，只需即時運算更新截面位置即可
         document.getElementById('slice-slider').addEventListener('input', function() { 
             sliceValue = parseFloat(this.value); 
             updateClipPlanes(); 
@@ -1277,13 +1265,6 @@
 
         window.toggleGrid = function() { if (gridHelper) gridHelper.visible = document.getElementById('grid-toggle').checked; }
         window.toggleTransparency = function() { isTransparent = document.getElementById('xray-toggle').checked; updateShape(); }
-        
-        // 鏡頭環視開關
-        window.toggleAutoOrbit = function() {
-            if (controls) {
-                controls.autoRotate = document.getElementById('rotate-toggle').checked;
-            }
-        }
         
         // 匯出純白無網格圖片功能
         window.exportImage = function() {
