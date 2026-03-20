@@ -275,7 +275,7 @@
         let currentBaseSize = 1.5; 
         
         let rotX = 0, rotY = 0, rotZ = 0; 
-        let isCubeMode = false; // 新增正方體模式狀態
+        let isCubeMode = false; 
         
         let isTransparent = false;
         let isUnfolded = false;
@@ -459,7 +459,7 @@
             ctx.fill();
 
             ctx.lineWidth = 4;
-            ctx.strokeStyle = '#f43f5e'; // 玫瑰紅色
+            ctx.strokeStyle = '#f43f5e'; 
             ctx.stroke();
 
             ctx.fillStyle = '#f43f5e';
@@ -471,13 +471,13 @@
             const texture = new THREE.CanvasTexture(canvas);
             const material = new THREE.SpriteMaterial({
                 map: texture,
-                depthTest: false, // 使標籤浮於稜線上方
+                depthTest: true, // [修正] 啟用深度測試，讓標籤會被圖形自動遮擋
                 clippingPlanes: planes
             });
             const sprite = new THREE.Sprite(material);
             sprite.scale.set(0.6, 0.24, 1);
             sprite.userData.isLengthLabel = true;
-            sprite.renderOrder = 999;
+            // [修正] 移除 renderOrder，使其遵循一般渲染層級
             return sprite;
         }
 
@@ -534,7 +534,7 @@
                         const lengthText = len.toFixed(1);
                         const sprite = createLengthSprite(lengthText);
                         
-                        // 使標籤稍微偏離中心，避免被圖形遮擋
+                        // 使標籤稍微偏離中心，避免被圖形完全包覆
                         const centerDir = mid.clone();
                         centerDir.y = 0; // 偏向水平推移
                         if (centerDir.length() < 0.01) centerDir.set(0, 1, 0);
@@ -1087,11 +1087,9 @@
             controls.update();
         }
 
-        // 開啟/關閉正方體模式
         window.toggleCubeMode = function() {
             isCubeMode = document.getElementById('cube-toggle').checked;
             if (isCubeMode) {
-                // 將高度同步為闊度計算出的邊長 (邊長 = 基礎半徑 * sqrt(2))
                 currentHeight = currentBaseSize * Math.sqrt(2);
                 document.getElementById('height-slider').value = currentHeight;
                 document.getElementById('height-val').innerText = currentHeight.toFixed(1);
@@ -1156,14 +1154,12 @@
                  if(txt) txt.innerText = isUnfolded ? "摺疊回立體" : "展開成摺紙圖";
             }
 
-            // 更新正方體模式按鈕的顯示狀態
             const cubeModeContainer = document.getElementById('cube-mode-container');
             if (cubeModeContainer) {
                 if (selectedShapes.includes('rectPrism')) {
                     cubeModeContainer.classList.remove('hidden');
                 } else {
                     cubeModeContainer.classList.add('hidden');
-                    // 當沒有四角柱時自動關閉正方體模式
                     if (document.getElementById('cube-toggle').checked) {
                         document.getElementById('cube-toggle').checked = false;
                         isCubeMode = false;
@@ -1363,7 +1359,6 @@
                     obj.visible = showPartNames;
                 }
                 if (obj.userData.isLengthLabel) {
-                    // 若有開「顯示稜」，但總開關把「稜」關掉，則標籤也應該隱藏
                     obj.visible = showLengths && showEdges;
                 }
             });
@@ -1396,7 +1391,6 @@
             currentHeight = parseFloat(this.value); 
             document.getElementById('height-val').innerText = currentHeight.toFixed(1);
             
-            // 如果開啟了正方體模式，同步改變闊度
             if (isCubeMode) {
                 currentBaseSize = currentHeight / Math.sqrt(2);
                 document.getElementById('width-slider').value = currentBaseSize;
@@ -1411,7 +1405,6 @@
             currentBaseSize = parseFloat(this.value); 
             document.getElementById('width-val').innerText = currentBaseSize.toFixed(1);
             
-            // 如果開啟了正方體模式，同步改變高度
             if (isCubeMode) {
                 currentHeight = currentBaseSize * Math.sqrt(2);
                 document.getElementById('height-slider').value = currentHeight;
