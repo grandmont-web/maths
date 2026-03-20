@@ -44,6 +44,7 @@
 
         .feature-checkbox { accent-color: #3b82f6; transform: scale(1.1); cursor: pointer; }
         .feature-checkbox.accent-purple-500 { accent-color: #8b5cf6; }
+        .feature-checkbox.accent-rose-500 { accent-color: #f43f5e; }
 
         .btn-unfold {
             background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
@@ -100,7 +101,6 @@
 
     <div id="loading">正在準備積木...</div>
 
-    <!-- 浮動按鈕區塊 -->
     <div class="absolute top-4 right-4 pointer-events-auto z-20">
         <button onclick="exportImage()" class="flex items-center gap-2 bg-white/95 backdrop-blur px-3 py-2 rounded-xl shadow-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600 transition text-gray-700 font-bold text-sm group" title="匯出純白背景且無網格的圖片">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="group-hover:stroke-blue-600"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
@@ -213,6 +213,15 @@
                         <span id="unfold-text">展開成摺紙圖</span>
                     </button>
 
+                    <!-- 正方體鎖定模式 -->
+                    <div id="cube-mode-container" class="hidden flex items-center justify-between bg-blue-50/80 p-2 rounded-lg border border-blue-200 shadow-inner mt-1">
+                        <span class="text-[11px] text-blue-800 font-bold flex items-center gap-1">🧊 變換為正方體 (等邊)</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                          <input type="checkbox" id="cube-toggle" class="sr-only peer" onchange="toggleCubeMode()">
+                          <div class="w-8 h-4 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3.5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+
                     <div class="flex items-center gap-3 bg-white p-2.5 rounded-xl border border-gray-100">
                         <div class="flex-1 flex flex-col gap-2">
                             <!-- 高度調整 -->
@@ -221,7 +230,7 @@
                                     <label class="text-[10px] text-gray-500 font-bold uppercase">高度</label>
                                     <span id="height-val" class="text-[9px] text-indigo-500 font-bold">2.5</span>
                                 </div>
-                                <input type="range" id="height-slider" min="1" max="5" step="0.1" value="2.5" class="w-full h-1.5 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+                                <input type="range" id="height-slider" min="1" max="6" step="0.1" value="2.5" class="w-full h-1.5 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-500">
                             </div>
                             <!-- 闊度調整 -->
                             <div class="flex flex-col">
@@ -229,7 +238,7 @@
                                     <label class="text-[10px] text-gray-500 font-bold uppercase">闊度</label>
                                     <span id="width-val" class="text-[9px] text-indigo-500 font-bold">1.5</span>
                                 </div>
-                                <input type="range" id="width-slider" min="0.5" max="3" step="0.1" value="1.5" class="w-full h-1.5 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+                                <input type="range" id="width-slider" min="0.5" max="4" step="0.1" value="1.5" class="w-full h-1.5 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-500">
                             </div>
                         </div>
                         
@@ -265,14 +274,14 @@
         let currentHeight = 2.5;
         let currentBaseSize = 1.5; 
         
-        let rotX = 0, rotY = 0, rotZ = 0; // 圖形獨立旋轉角度
+        let rotX = 0, rotY = 0, rotZ = 0; 
+        let isCubeMode = false; // 新增正方體模式狀態
         
         let isTransparent = false;
         let isUnfolded = false;
         let sliceMode = 'none';
         let sliceValue = 0;
         
-        // 分離各個圖形的截面與封口資料
         let shapeSlices = []; 
 
         const shapeColor = 0x60a5fa; 
@@ -326,9 +335,12 @@
             controls.enableDamping = true;
             controls.dampingFactor = 0.05;
             
-            // 開啟自動環視功能 (背景執行，無 UI 設定)
             controls.autoRotate = true;
             controls.autoRotateSpeed = 1.0; 
+            
+            controls.addEventListener('start', function() {
+                controls.autoRotate = false;
+            });
 
             mainGroup = new THREE.Group();
             scene.add(mainGroup);
@@ -424,6 +436,51 @@
             return sprite;
         }
 
+        // 產生長度標示精靈圖
+        function createLengthSprite(text, planes = []) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 160;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+            ctx.beginPath();
+            const r = 16, x = 4, y = 4, w = 152, h = 56;
+            ctx.moveTo(x + r, y);
+            ctx.lineTo(x + w - r, y);
+            ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+            ctx.lineTo(x + w, y + h - r);
+            ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+            ctx.lineTo(x + r, y + h);
+            ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+            ctx.lineTo(x, y + r);
+            ctx.quadraticCurveTo(x, y, x + r, y);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#f43f5e'; // 玫瑰紅色
+            ctx.stroke();
+
+            ctx.fillStyle = '#f43f5e';
+            ctx.font = 'bold 36px "Noto Sans TC", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, 80, 34);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const material = new THREE.SpriteMaterial({
+                map: texture,
+                depthTest: false, // 使標籤浮於稜線上方
+                clippingPlanes: planes
+            });
+            const sprite = new THREE.Sprite(material);
+            sprite.scale.set(0.6, 0.24, 1);
+            sprite.userData.isLengthLabel = true;
+            sprite.renderOrder = 999;
+            return sprite;
+        }
+
         function getPolygonVertices(n, r) {
             const vertices = [];
             const startAngle = -Math.PI/2 - Math.PI/n;
@@ -434,12 +491,14 @@
             return vertices;
         }
 
-        function createThickEdges(geometry, color) {
+        function createThickEdges(geometry, color, type, isCurved) {
             const edgeGeo = new THREE.EdgesGeometry(geometry, 25); 
             const positions = edgeGeo.attributes.position.array;
             const group = new THREE.Group();
             const mat = new THREE.MeshBasicMaterial({ color: color });
             const thickness = 0.04;
+
+            const addedMidpoints = [];
 
             for (let i = 0; i < positions.length; i += 6) {
                 const start = new THREE.Vector3(positions[i], positions[i+1], positions[i+2]);
@@ -459,13 +518,39 @@
                 mesh.userData.isEdge = true; 
                 
                 group.add(mesh);
+
+                // 為非曲面的直稜添加長度標籤
+                if (!isCurved) {
+                    const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+                    
+                    // 避免在同一位置重複生成標籤
+                    let isDuplicate = false;
+                    for(let m of addedMidpoints) {
+                        if (m.distanceTo(mid) < 0.05) { isDuplicate = true; break; }
+                    }
+                    
+                    if (!isDuplicate) {
+                        addedMidpoints.push(mid);
+                        const lengthText = len.toFixed(1);
+                        const sprite = createLengthSprite(lengthText);
+                        
+                        // 使標籤稍微偏離中心，避免被圖形遮擋
+                        const centerDir = mid.clone();
+                        centerDir.y = 0; // 偏向水平推移
+                        if (centerDir.length() < 0.01) centerDir.set(0, 1, 0);
+                        centerDir.normalize();
+                        
+                        sprite.position.copy(mid).add(centerDir.multiplyScalar(0.18));
+                        group.add(sprite);
+                    }
+                }
             }
             group.userData.isEdgeGroup = true;
             return group;
         }
 
         function createFaceMesh(type, geometry, options = {}) {
-            const { showEdges = true, showVertices = true, flatShading = true } = options;
+            const { showEdges = true, showVertices = true, flatShading = true, isCurved = false } = options;
             const material = new THREE.MeshPhongMaterial({
                 color: shapeColor, shininess: 60, specular: 0x444444, flatShading: flatShading,
                 side: THREE.DoubleSide, transparent: isTransparent, opacity: isTransparent ? 0.3 : 1.0,
@@ -478,8 +563,10 @@
             mesh.userData.shapeType = type;
             
             if (showEdges && type !== 'sphere') {
-                const thickEdges = createThickEdges(geometry, edgeColor);
-                if(options.clippingPlanes) thickEdges.traverse(c => { if(c.isMesh) c.material.clippingPlanes = options.clippingPlanes; });
+                const thickEdges = createThickEdges(geometry, edgeColor, type, isCurved);
+                if(options.clippingPlanes) thickEdges.traverse(c => { 
+                    if(c.isMesh || c.isSprite) c.material.clippingPlanes = options.clippingPlanes; 
+                });
                 mesh.add(thickEdges);
             }
 
@@ -516,7 +603,7 @@
             return mesh;
         }
 
-        function createSolidWithSection(type, geometry, showVertices, planes, stencilRef) {
+        function createSolidWithSection(type, geometry, showVertices, planes, stencilRef, isCurved) {
             const group = new THREE.Group();
             const mat = new THREE.MeshPhongMaterial({
                 color: shapeColor, shininess: 60, specular: 0x444444,
@@ -528,7 +615,6 @@
             mesh.userData.shapeType = type;
             group.add(mesh);
             
-            // Stencil 寫入層，跟隨圖形旋轉並指定各立體獨立的 Reference
             const stencilMat = new THREE.MeshBasicMaterial({ 
                 color: 0, side: THREE.BackSide, clippingPlanes: planes, 
                 colorWrite: false, depthWrite: false, 
@@ -539,39 +625,27 @@
             group.add(new THREE.Mesh(geometry, stencilMat));
             
             if(type !== 'sphere') {
-                const edges = createThickEdges(geometry, edgeColor);
+                const edges = createThickEdges(geometry, edgeColor, type, isCurved);
                 edges.traverse(c=>{
-                    if(c.isMesh) { c.material.clippingPlanes=planes; c.userData.shapeType = type; }
+                    if(c.isMesh || c.isSprite) { c.material.clippingPlanes=planes; c.userData.shapeType = type; }
                 });
                 group.add(edges);
             }
             return group;
         }
         
-        // 更新所有截面 (依據立體的旋轉角度與位置)
         function updateClipPlanes() {
             if (sliceMode === 'none') return;
-            
-            // 強制更新矩陣，確保取得最新的世界座標與旋轉角度
             scene.updateMatrixWorld(true);
 
             shapeSlices.forEach(slice => {
                 if (sliceMode === 'parallel') {
-                    // 平行於底: 局部法線為 (0, -1, 0)，往下的方向，保留底層。局部截面高度就是 sliceValue。
                     const localPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), sliceValue);
-                    
-                    // 利用立體的矩陣，將局部平面轉換到世界座標
                     slice.plane.copy(localPlane).applyMatrix4(slice.pivotGroup.matrixWorld);
-                    
-                    // 設定封口的面相與位置
                     slice.capMesh.setRotationFromQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), slice.plane.normal));
-                    
-                    // 找出該截面中心在世界座標中的位置
                     const pointOnPlane = new THREE.Vector3(0, sliceValue, 0).applyMatrix4(slice.pivotGroup.matrixWorld);
                     slice.capMesh.position.copy(pointOnPlane);
-                    
                 } else {
-                    // 世界座標模式下的截斷
                     let normal = new THREE.Vector3(0, -1, 0); 
                     if (sliceMode === 'z') normal.set(0, 0, -1);
                     else if (sliceMode === 'oblique') normal.set(0, -1, -1).normalize();
@@ -717,9 +791,9 @@
 
             let meshOrGroup;
             if (sliceMode !== 'none') {
-                meshOrGroup = createSolidWithSection(type, geo, !isCurved, planes, stencilRef);
+                meshOrGroup = createSolidWithSection(type, geo, !isCurved, planes, stencilRef, isCurved);
             } else {
-                meshOrGroup = createFaceMesh(type, geo, { showVertices: !isCurved, showInternalEdges: !isCurved, flatShading: !isCurved });
+                meshOrGroup = createFaceMesh(type, geo, { showVertices: !isCurved, showInternalEdges: !isCurved, flatShading: !isCurved, isCurved: isCurved });
             }
 
             const rootGroup = new THREE.Group();
@@ -769,7 +843,7 @@
 
                 for (let i = 0; i < numPanels; i++) {
                     const planeGeo = new THREE.PlaneGeometry(panelWidth, h);
-                    const planeMesh = createFaceMesh(type, planeGeo, { showVertices: !isCurved, flatShading: !isCurved });
+                    const planeMesh = createFaceMesh(type, planeGeo, { showVertices: !isCurved, flatShading: !isCurved, isCurved: false });
                     const xPos = (i - (numPanels - 1) / 2) * panelWidth;
                     planeMesh.position.set(xPos, 0, 0);
                     
@@ -792,7 +866,7 @@
                 const midX = (midIndex - (numPanels - 1) / 2) * panelWidth;
                 const offset = isCurved ? r : apothem;
 
-                const topMesh = createFaceMesh(type, baseGeo, { showVertices: !isCurved, flatShading: !isCurved });
+                const topMesh = createFaceMesh(type, baseGeo, { showVertices: !isCurved, flatShading: !isCurved, isCurved: isCurved });
                 topMesh.position.set(midX, h/2 + offset, 0);
                 const topSprite = createTextSprite(1); 
                 topSprite.position.set(0, 0, labelOffset);
@@ -804,7 +878,7 @@
                 
                 root.add(topMesh);
 
-                const bottomMesh = createFaceMesh(type, baseGeo, { showVertices: !isCurved, flatShading: !isCurved });
+                const bottomMesh = createFaceMesh(type, baseGeo, { showVertices: !isCurved, flatShading: !isCurved, isCurved: isCurved });
                 bottomMesh.position.set(midX, -h/2 - offset, 0);
                 bottomMesh.rotation.z = Math.PI;
                 const bottomSprite = createTextSprite(2); 
@@ -825,7 +899,7 @@
                     const slantHeight = Math.sqrt(h * h + apothem * apothem);
 
                     const baseShape = getPolyShape(nSides, r);
-                    const baseMesh = createFaceMesh(type, new THREE.ShapeGeometry(baseShape), { showVertices: true, flatShading: true });
+                    const baseMesh = createFaceMesh(type, new THREE.ShapeGeometry(baseShape), { showVertices: true, flatShading: true, isCurved: false });
                     const baseSprite = createTextSprite(1); 
                     baseSprite.position.set(0, 0, labelOffset);
                     baseMesh.add(baseSprite);
@@ -844,7 +918,7 @@
                         triShape.lineTo(0, slantHeight); 
                         triShape.closePath();
                         
-                        const triMesh = createFaceMesh(type, new THREE.ShapeGeometry(triShape), { showVertices: true, flatShading: true });
+                        const triMesh = createFaceMesh(type, new THREE.ShapeGeometry(triShape), { showVertices: true, flatShading: true, isCurved: false });
                         const theta = -Math.PI/2 + i * (2 * Math.PI / nSides); 
                         
                         triMesh.position.set(apothem * Math.cos(theta), apothem * Math.sin(theta), 0);
@@ -872,7 +946,7 @@
                     sectorShape.absarc(0, 0, L, -theta/2, theta/2, false);
                     sectorShape.lineTo(0, 0);
                     
-                    const sectorMesh = createFaceMesh(type, new THREE.ShapeGeometry(sectorShape, 64), { showVertices: false, flatShading: false });
+                    const sectorMesh = createFaceMesh(type, new THREE.ShapeGeometry(sectorShape, 64), { showVertices: false, flatShading: false, isCurved: true });
                     sectorMesh.rotation.z = -Math.PI/2; 
                     sectorMesh.position.set(0, L, 0);   
                     
@@ -887,7 +961,7 @@
                     root.add(sectorMesh);
 
                     const baseShape = getPolyShape(64, r);
-                    const baseMesh = createFaceMesh(type, new THREE.ShapeGeometry(baseShape), { showVertices: false, flatShading: false });
+                    const baseMesh = createFaceMesh(type, new THREE.ShapeGeometry(baseShape), { showVertices: false, flatShading: false, isCurved: true });
                     baseMesh.position.set(0, -r, 0); 
                     const baseSprite = createTextSprite(1);
                     baseSprite.position.set(0, 0, labelOffset);
@@ -905,7 +979,6 @@
             return root;
         }
 
-        // 旋轉控制函式
         window.updateRotX = function(val) { rotX = parseInt(val); document.getElementById('rot-x-val').innerText = rotX + '°'; applyShapeRotation(); }
         window.updateRotY = function(val) { rotY = parseInt(val); document.getElementById('rot-y-val').innerText = rotY + '°'; applyShapeRotation(); }
         window.updateRotZ = function(val) { rotZ = parseInt(val); document.getElementById('rot-z-val').innerText = rotZ + '°'; applyShapeRotation(); }
@@ -928,13 +1001,12 @@
                     );
                 }
             });
-            updateClipPlanes(); // 旋轉時同步更新「平行於底」的截面位置
+            updateClipPlanes(); 
         }
 
         function updateShape() {
             mainGroup.clear();
             
-            // 清理舊的截面與封口
             shapeSlices.forEach(s => {
                 if(s.capMesh && s.capMesh.parent) s.capMesh.parent.remove(s.capMesh);
             });
@@ -956,7 +1028,6 @@
                 const pivotGroup = new THREE.Group();
                 pivotGroup.userData.isPivot = true; 
                 
-                // 每一個立體都配發獨立的截面設定
                 const stencilRef = index + 1;
                 const plane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
                 const planesArray = sliceMode !== 'none' ? [plane] : [];
@@ -967,14 +1038,12 @@
                     wrapper.position.y = 0;
                 } else {
                     meshOrGroup = createSolidMesh(type, currentBaseSize, currentHeight, planesArray, stencilRef);
-                    // 為了旋轉時能依據圖形幾何中心旋轉，將其置中，再透過 wrapper 抬升回地面
                     const offsetY = (type === 'sphere') ? currentBaseSize : (currentHeight / 2);
                     wrapper.position.y = offsetY; 
                 }
                 
                 pivotGroup.add(meshOrGroup);
                 
-                // 套用使用者獨立旋轉
                 pivotGroup.rotation.set(
                     THREE.MathUtils.degToRad(rotX),
                     THREE.MathUtils.degToRad(rotY),
@@ -984,7 +1053,6 @@
                 wrapper.add(pivotGroup);
                 mainGroup.add(wrapper);
                 
-                // 各立體獨立的全域截面封口
                 const capMat = new THREE.MeshBasicMaterial({ 
                     color: sectionColor, 
                     side: THREE.DoubleSide, 
@@ -995,13 +1063,13 @@
                 const capMesh = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), capMat);
                 capMesh.visible = (sliceMode !== 'none');
                 capMesh.renderOrder = 1; 
-                scene.add(capMesh); // 必須放置於世界座標下
+                scene.add(capMesh); 
 
                 shapeSlices.push({ plane, capMesh, wrapper, pivotGroup });
             });
             
             updateVisibility();
-            updateClipPlanes(); // 建構完畢後立即計算平面位置
+            updateClipPlanes(); 
         }
 
         function resetCamera() {
@@ -1017,6 +1085,19 @@
             }
             controls.target.set(0, 0, 0);
             controls.update();
+        }
+
+        // 開啟/關閉正方體模式
+        window.toggleCubeMode = function() {
+            isCubeMode = document.getElementById('cube-toggle').checked;
+            if (isCubeMode) {
+                // 將高度同步為闊度計算出的邊長 (邊長 = 基礎半徑 * sqrt(2))
+                currentHeight = currentBaseSize * Math.sqrt(2);
+                document.getElementById('height-slider').value = currentHeight;
+                document.getElementById('height-val').innerText = currentHeight.toFixed(1);
+            }
+            updateSliceRange();
+            updateShape();
         }
 
         window.toggleCompareMode = function() {
@@ -1074,6 +1155,21 @@
                  btn.disabled = false; btn.style.opacity='1';
                  if(txt) txt.innerText = isUnfolded ? "摺疊回立體" : "展開成摺紙圖";
             }
+
+            // 更新正方體模式按鈕的顯示狀態
+            const cubeModeContainer = document.getElementById('cube-mode-container');
+            if (cubeModeContainer) {
+                if (selectedShapes.includes('rectPrism')) {
+                    cubeModeContainer.classList.remove('hidden');
+                } else {
+                    cubeModeContainer.classList.add('hidden');
+                    // 當沒有四角柱時自動關閉正方體模式
+                    if (document.getElementById('cube-toggle').checked) {
+                        document.getElementById('cube-toggle').checked = false;
+                        isCubeMode = false;
+                    }
+                }
+            }
         }
 
         function updateSliceRange() {
@@ -1102,12 +1198,14 @@
             const showVerticesEl = document.getElementById('show-vertices');
             const showLabelsEl = document.getElementById('show-labels'); 
             const showPartNamesEl = document.getElementById('show-part-names'); 
+            const showLengthsEl = document.getElementById('show-lengths'); 
             
             const showFacesChecked = showFacesEl ? showFacesEl.checked : true;
             const showEdgesChecked = showEdgesEl ? showEdgesEl.checked : true;
             const showVerticesChecked = showVerticesEl ? showVerticesEl.checked : false;
             const showLabelsChecked = showLabelsEl ? showLabelsEl.checked : false;
             const showPartNamesChecked = showPartNamesEl ? showPartNamesEl.checked : false;
+            const showLengthsChecked = showLengthsEl ? showLengthsEl.checked : false;
 
             let html = '';
             
@@ -1167,14 +1265,18 @@
                             <span class="text-xs font-bold text-gray-700">頂點</span>
                         </label>
                     </div>
-                    <div class="flex justify-center gap-3 pt-1">
+                    <div class="flex justify-center gap-2 pt-1 flex-wrap mt-1">
                         <label class="flex items-center space-x-1 cursor-pointer select-none bg-amber-50 hover:bg-amber-100 p-1.5 rounded-md transition border border-amber-200">
                             <input type="checkbox" id="show-labels" class="feature-checkbox accent-amber-500" ${showLabelsChecked ? 'checked' : ''} onchange="updateVisibility()">
                             <span class="text-xs font-bold text-amber-800">標示面數</span>
                         </label>
                         <label class="flex items-center space-x-1 cursor-pointer select-none bg-purple-50 hover:bg-purple-100 p-1.5 rounded-md transition border border-purple-200">
                             <input type="checkbox" id="show-part-names" class="feature-checkbox accent-purple-500" ${showPartNamesChecked ? 'checked' : ''} onchange="updateVisibility()">
-                            <span class="text-xs font-bold text-purple-800">各部分名稱</span>
+                            <span class="text-xs font-bold text-purple-800">部分名稱</span>
+                        </label>
+                        <label class="flex items-center space-x-1 cursor-pointer select-none bg-rose-50 hover:bg-rose-100 p-1.5 rounded-md transition border border-rose-200">
+                            <input type="checkbox" id="show-lengths" class="feature-checkbox accent-rose-500" ${showLengthsChecked ? 'checked' : ''} onchange="updateVisibility()">
+                            <span class="text-xs font-bold text-rose-800">顯示稜長</span>
                         </label>
                     </div>
                 </div>
@@ -1205,7 +1307,6 @@
                 if(unfoldTxt) unfoldTxt.innerText = "截面模式中無法展開";
                 unfoldBtn.style.opacity = '0.5';
                 
-                // 設定各自的預設切面 Slider 值
                 if (mode === 'y') { slider.min = -0.5; slider.max = currentHeight + 0.5; slider.value = currentHeight / 2; } 
                 else if (mode === 'z') { slider.min = -currentBaseSize - 0.5; slider.max = currentBaseSize + 0.5; slider.value = 0; } 
                 else if (mode === 'oblique') { slider.min = -currentBaseSize - 0.5; slider.max = currentHeight + currentBaseSize + 0.5; slider.value = currentHeight / 2; }
@@ -1216,7 +1317,6 @@
             updateShape();
         }
         
-        // 當拉桿滑動時，不須重建整個場景，只需即時運算更新截面位置即可
         document.getElementById('slice-slider').addEventListener('input', function() { 
             sliceValue = parseFloat(this.value); 
             updateClipPlanes(); 
@@ -1238,12 +1338,14 @@
             const vertCb = document.getElementById('show-vertices');
             const labelCb = document.getElementById('show-labels'); 
             const partNameCb = document.getElementById('show-part-names'); 
+            const lengthsCb = document.getElementById('show-lengths'); 
             
             const showFaces = faceCb ? faceCb.checked : true;
             const showEdges = edgeCb ? edgeCb.checked : true;
             const showVertices = vertCb ? vertCb.checked : false;
             const showLabels = labelCb ? labelCb.checked : false;
             const showPartNames = partNameCb ? partNameCb.checked : false;
+            const showLengths = lengthsCb ? lengthsCb.checked : false;
 
             mainGroup.traverse(obj => {
                 if (obj.userData.isFace && obj.material) obj.material.visible = showFaces;
@@ -1260,13 +1362,16 @@
                 if (obj.userData.isPartName) {
                     obj.visible = showPartNames;
                 }
+                if (obj.userData.isLengthLabel) {
+                    // 若有開「顯示稜」，但總開關把「稜」關掉，則標籤也應該隱藏
+                    obj.visible = showLengths && showEdges;
+                }
             });
         }
 
         window.toggleGrid = function() { if (gridHelper) gridHelper.visible = document.getElementById('grid-toggle').checked; }
         window.toggleTransparency = function() { isTransparent = document.getElementById('xray-toggle').checked; updateShape(); }
         
-        // 匯出純白無網格圖片功能
         window.exportImage = function() {
             const originalBackground = scene.background;
             const originalGridVisible = gridHelper ? gridHelper.visible : false;
@@ -1290,6 +1395,14 @@
         document.getElementById('height-slider').addEventListener('input', function() { 
             currentHeight = parseFloat(this.value); 
             document.getElementById('height-val').innerText = currentHeight.toFixed(1);
+            
+            // 如果開啟了正方體模式，同步改變闊度
+            if (isCubeMode) {
+                currentBaseSize = currentHeight / Math.sqrt(2);
+                document.getElementById('width-slider').value = currentBaseSize;
+                document.getElementById('width-val').innerText = currentBaseSize.toFixed(1);
+            }
+            
             updateSliceRange(); 
             updateShape(); 
         });
@@ -1297,6 +1410,14 @@
         document.getElementById('width-slider').addEventListener('input', function() { 
             currentBaseSize = parseFloat(this.value); 
             document.getElementById('width-val').innerText = currentBaseSize.toFixed(1);
+            
+            // 如果開啟了正方體模式，同步改變高度
+            if (isCubeMode) {
+                currentHeight = currentBaseSize * Math.sqrt(2);
+                document.getElementById('height-slider').value = currentHeight;
+                document.getElementById('height-val').innerText = currentHeight.toFixed(1);
+            }
+            
             updateSliceRange(); 
             updateShape(); 
         });
