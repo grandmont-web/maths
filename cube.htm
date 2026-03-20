@@ -17,11 +17,11 @@
             transform: scale(0.95);
         }
         
-        /* 3D 場景容器 (修正為彈性佈局，避免與文字重疊) */
+        /* 3D 場景容器 */
         .scene {
             width: 100%;
             perspective: 800px;
-            display: none; /* 預設隱藏，成功時透過 flex 顯示 */
+            display: none; 
             align-items: center;
             justify-content: center;
             cursor: grab;
@@ -167,20 +167,17 @@
                 </div>
 
                 <!-- 操作按鈕 -->
-                <div class="flex flex-wrap gap-3 justify-center mt-auto">
-                    <button onclick="checkNet()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-lg font-bold transition-colors shadow-sm flex items-center w-full justify-center text-lg">
+                <div class="flex flex-col gap-3 justify-center mt-auto">
+                    <button onclick="checkNet()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-lg font-bold transition-colors shadow-sm flex items-center justify-center text-lg">
                         <i class="fa-solid fa-wand-magic-sparkles mr-2"></i> 檢查能否摺疊
                     </button>
-                    <button onclick="showExample()" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-800 px-4 py-2 rounded-lg font-bold transition-colors shadow-sm flex items-center flex-1 justify-center">
-                        <i class="fa-solid fa-lightbulb mr-2"></i> 給我範例
-                    </button>
-                    <button onclick="clearGrid()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-lg font-bold transition-colors shadow-sm flex items-center flex-1 justify-center">
+                    <button onclick="clearGrid()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-3 rounded-lg font-bold transition-colors shadow-sm flex items-center justify-center">
                         <i class="fa-solid fa-eraser mr-2"></i> 清除重畫
                     </button>
                 </div>
             </div>
 
-            <!-- 右側：結果與 3D 顯示區 (7/12 比例，修改為 flex-col 避免重疊) -->
+            <!-- 右側：結果與 3D 顯示區 (7/12 比例) -->
             <div class="w-full lg:w-7/12 bg-white p-6 rounded-2xl shadow-lg border border-slate-100 min-h-[650px] flex flex-col relative">
                 
                 <h2 class="text-xl font-bold text-slate-700 w-full text-center mb-4 flex-shrink-0">檢驗結果與 3D 視角</h2>
@@ -191,7 +188,7 @@
                     <p>畫好展開圖後，點擊「檢查」按鈕來看看結果吧！</p>
                 </div>
 
-                <!-- 成功/失敗 訊息顯示區 (固定在上方，不重疊) -->
+                <!-- 成功/失敗 訊息顯示區 -->
                 <div id="resultBox" class="hidden w-full text-center p-4 rounded-xl mb-4 animate-pop flex-shrink-0 z-10 border-2">
                     <i id="resultIcon" class="text-4xl mb-2"></i>
                     <h3 id="resultTitle" class="text-2xl font-bold mb-1"></h3>
@@ -199,7 +196,7 @@
                     
                     <!-- 摺疊操作與互動提示區 -->
                     <div id="actionButtons" class="mt-2 flex flex-col items-center gap-3 hidden w-full">
-                        <!-- 操作提示列 (強調攤開也可轉動) -->
+                        <!-- 操作提示列 -->
                         <div class="flex flex-wrap justify-center gap-3 text-sm text-slate-600 bg-white/60 border border-slate-200 px-4 py-2 rounded-lg shadow-sm w-full font-medium">
                             <span class="whitespace-nowrap"><i class="fa-solid fa-hand-pointer text-indigo-500"></i> 滑鼠拖曳: 轉動視角 (攤開或摺疊皆可)</span>
                             <span class="whitespace-nowrap"><i class="fa-solid fa-magnifying-glass text-indigo-500"></i> 滾輪: 縮放</span>
@@ -219,7 +216,7 @@
                     </div>
                 </div>
 
-                <!-- 3D 正方體動畫容器 (佔滿剩餘空間，不再是 absolute) -->
+                <!-- 3D 正方體動畫容器 -->
                 <div class="scene flex-1 relative rounded-xl bg-slate-50/50" id="cubeScene">
                     <!-- 平移縮放容器 -->
                     <div id="panZoomContainer" style="transform: translate(0px, 0px) scale(1);">
@@ -255,28 +252,26 @@
         let rotY = 45;
         let panX = 0;
         let panY = 0;
-        let zoom = 1.2; // 放大預設縮放比例
+        let zoom = 1.2; 
         let initialPinchDist = null;
 
-        // 定義 11 種標準正方體展開圖 (皆以左上角為 0,0 基準)
+        // 定義 11 種標準正方體展開圖
         const baseNetsCoords = [
-            [[1,0], [0,1],[1,1],[2,1],[3,1], [1,2]], // 1-4-1 (十字)
-            [[0,0], [0,1],[1,1],[2,1],[3,1], [0,2]], // 1-4-1
-            [[1,0], [0,1],[1,1],[2,1],[3,1], [0,2]], // 1-4-1
-            [[2,0], [0,1],[1,1],[2,1],[3,1], [0,2]], // 1-4-1
-            [[3,0], [0,1],[1,1],[2,1],[3,1], [0,2]], // 1-4-1
-            [[2,0], [0,1],[1,1],[2,1],[3,1], [1,2]], // 1-4-1
-            [[0,0],[1,0], [1,1],[2,1],[3,1], [3,2]], // 2-3-1
-            [[0,0],[1,0], [1,1],[2,1],[3,1], [2,2]], // 2-3-1
-            [[0,0],[1,0], [1,1],[2,1],[3,1], [1,2]], // 2-3-1
-            [[0,0],[1,0], [1,1],[2,1], [2,2],[3,2]], // 2-2-2 (階梯)
-            [[0,0],[1,0],[2,0], [2,1],[3,1],[4,1]]   // 3-3
+            [[1,0], [0,1],[1,1],[2,1],[3,1], [1,2]], 
+            [[0,0], [0,1],[1,1],[2,1],[3,1], [0,2]], 
+            [[1,0], [0,1],[1,1],[2,1],[3,1], [0,2]], 
+            [[2,0], [0,1],[1,1],[2,1],[3,1], [0,2]], 
+            [[3,0], [0,1],[1,1],[2,1],[3,1], [0,2]], 
+            [[2,0], [0,1],[1,1],[2,1],[3,1], [1,2]], 
+            [[0,0],[1,0], [1,1],[2,1],[3,1], [3,2]], 
+            [[0,0],[1,0], [1,1],[2,1],[3,1], [2,2]], 
+            [[0,0],[1,0], [1,1],[2,1],[3,1], [1,2]], 
+            [[0,0],[1,0], [1,1],[2,1], [2,2],[3,2]], 
+            [[0,0],[1,0],[2,0], [2,1],[3,1],[4,1]]   
         ];
 
-        // 記錄 11 種形狀是否已解鎖的陣列
         let unlockedShapes = new Array(11).fill(false);
 
-        // 標準化坐標函數
         function getCanonicalStr(pts) {
             let minX = Math.min(...pts.map(p => p.x));
             let minY = Math.min(...pts.map(p => p.y));
@@ -287,7 +282,6 @@
 
         const baseNetsCanonical = baseNetsCoords.map(net => getCanonicalStr(net.map(p => ({x:p[0], y:p[1]}))));
 
-        // 模擬 CSS 旋轉與翻轉
         function applyTransform(x, y, rotDeg, flipX) {
             let nx = x, ny = y;
             let r = ((rotDeg % 360) + 360) % 360;
@@ -298,7 +292,6 @@
             return {x: nx, y: ny};
         }
 
-        // 尋找學生的圖形符合 11 種圖鑑的哪一種
         function findMatchingNet(userCells) {
             for (let flip of [false, true]) {
                 for (let rot of [0, 90, 180, 270]) {
@@ -313,7 +306,6 @@
             return null;
         }
 
-        // 初始化網格
         function initGrid() {
             gridContainer.innerHTML = '';
             for (let y = 0; y < GRID_SIZE; y++) {
@@ -328,7 +320,6 @@
             }
         }
 
-        // 初始化 Modal 裡的 11 個鎖頭
         function renderLocks() {
             const grid = document.getElementById('locksGrid');
             grid.innerHTML = '';
@@ -337,12 +328,10 @@
                 slot.className = 'relative w-[70px] h-[70px] md:w-[90px] md:h-[90px] bg-slate-100 border-2 border-slate-200 rounded-2xl flex items-center justify-center transition-all duration-500';
                 slot.id = `slot-${idx}`;
                 
-                // 鎖頭圖示
                 const lockIcon = document.createElement('i');
                 lockIcon.className = 'fa-solid fa-lock text-3xl md:text-4xl text-slate-300 absolute transition-all duration-500 lock-icon';
                 slot.appendChild(lockIcon);
 
-                // 解鎖後顯示的小圖形容器 (預設隱藏且縮小)
                 const shapeContainer = document.createElement('div');
                 shapeContainer.className = 'shape-container absolute inset-0 flex items-center justify-center opacity-0 scale-50 transition-all duration-700';
                 
@@ -497,7 +486,7 @@
             cancelAnimationFrame(foldAnimId);
             const slider = document.getElementById('foldSlider');
             let current = parseFloat(slider.value);
-            const step = target > current ? 4 : -4; // 加快摺疊速度
+            const step = target > current ? 4 : -4;
 
             function stepAnim() {
                 current += step;
@@ -509,16 +498,6 @@
                 }
             }
             stepAnim();
-        }
-
-        function showExample() {
-            clearGrid();
-            // 給一個經典十字形範例
-            const exampleCoords = [[1, 2], [2, 1], [2, 2], [2, 3], [2, 4], [3, 2]];
-            exampleCoords.forEach(coord => {
-                const cell = document.querySelector(`.grid-cell[data-x="${coord[0]}"][data-y="${coord[1]}"]`);
-                if (cell) toggleCell(cell, coord[0], coord[1]);
-            });
         }
 
         const OPPOSITE = { 0:1, 1:0, 2:3, 3:2, 4:5, 5:4 };
@@ -580,16 +559,13 @@
             return container;
         }
 
-        // --- 核心：播放鎖頭解鎖動畫 ---
         function playUnlockAnimation(matchIndex) {
             const modal = document.getElementById('collectionModal');
             modal.classList.remove('hidden');
             modal.classList.add('flex');
             
-            // 隱藏按鈕，等動畫完再出現
             document.getElementById('modalActionContainer').classList.add('opacity-0');
             
-            // 動態調整標題
             const count = unlockedShapes.filter(Boolean).length;
             document.getElementById('modalTitle').innerHTML = count === 11 
                 ? '<i class="fa-solid fa-trophy text-amber-500 mr-2"></i> 恭喜！您已收集全部 11 種！' 
@@ -600,7 +576,6 @@
                 const lockIcon = slot.querySelector('.lock-icon');
                 const shapeContainer = slot.querySelector('.shape-container');
                 
-                // 1. 鎖頭變色並跳動
                 lockIcon.classList.remove('fa-lock', 'text-slate-300');
                 lockIcon.classList.add('fa-lock-open', 'text-amber-500', 'animate-bounce');
                 
@@ -608,7 +583,6 @@
                 slot.classList.replace('bg-slate-100', 'bg-amber-50');
                 slot.classList.add('animate-unlock-glow');
                 
-                // 2. 鎖頭消失，形狀浮現
                 setTimeout(() => {
                     lockIcon.classList.remove('animate-bounce');
                     lockIcon.classList.add('opacity-0', 'scale-0');
@@ -619,14 +593,12 @@
                     slot.classList.remove('animate-unlock-glow');
                     slot.classList.add('shadow-lg', 'shadow-amber-200/50');
 
-                    // 顯示「觀看立體摺疊」按鈕
                     document.getElementById('modalActionContainer').classList.remove('opacity-0');
                 }, 1200);
                 
             }, 500);
         }
 
-        // 關閉 Modal 並進入 3D 階段
         function closeModalAndShow3D() {
             document.getElementById('collectionModal').classList.add('hidden');
             document.getElementById('collectionModal').classList.remove('flex');
@@ -635,7 +607,6 @@
             buildAndShow3D(window._pendingCells);
         }
 
-        // 渲染 3D 場景
         function buildAndShow3D(cells) {
             const minX = Math.min(...cells.map(c => c.x));
             const maxX = Math.max(...cells.map(c => c.x));
@@ -648,9 +619,7 @@
             
             panX = (rootX - centerX) * 60;
             panY = (rootY - centerY) * 60;
-            // 讓 3D 顯示稍微大一點
             zoom = 1.2; 
-            // 初始化視角
             rotX = -30;
             rotY = 45;
             
@@ -669,12 +638,11 @@
             
             cubeScene.innerHTML = '';
             cubeScene.appendChild(panZoomContainer);
-            cubeScene.style.display = 'flex'; // 使用 flex 讓它填滿剩餘空間
+            cubeScene.style.display = 'flex'; 
             
             document.getElementById('actionButtons').classList.remove('hidden');
             setFoldAngle(0);
             
-            // 自動展示摺疊動畫
             foldTimeout = setTimeout(() => {
                 if (!isCurrentlyFolded && document.getElementById('dynamicNet')) {
                     toggleFold();
@@ -694,7 +662,6 @@
                 return { x, y, key, number: index + 1 };
             });
 
-            // 檢查是否相連
             let visited = new Set();
             let queue = [cells[0]];
             visited.add(cells[0].key);
@@ -724,7 +691,6 @@
                 return;
             }
 
-            // 檢查是否能摺成正方體
             let isValidNet = true;
             let resultMsg = { title: '太棒了！', desc: '這是一個完美且正確的正方體展開圖！' };
             let faceMap = new Map(); 
@@ -766,15 +732,12 @@
                 if (match) {
                     window._pendingCells = cells;
                     
-                    // 檢查是否已經解鎖過
                     if (unlockedShapes[match.targetIndex]) {
                         showResult(true, '正確的展開圖！', '很棒！不過這個形狀您之前已經收集過了，試著發掘其他還未解鎖的排法吧！', true);
                         buildAndShow3D(cells);
                     } else {
-                        // 記錄解鎖
                         unlockedShapes[match.targetIndex] = true;
                         updateProgress();
-                        // 播放解鎖動畫 - 修正了這裡的變數名稱
                         playUnlockAnimation(match.targetIndex);
                     }
                 }
@@ -795,7 +758,6 @@
             }
         }
 
-        // --- 滑鼠與觸控的拖曳旋轉/縮放邏輯 ---
         function startDrag(e) {
             if (cubeScene.style.display === 'none') return;
             
@@ -835,7 +797,6 @@
                 let deltaX = clientX - prevMousePos.x;
                 let deltaY = clientY - prevMousePos.y;
 
-                // 調整旋轉靈敏度
                 rotY += deltaX * 0.6;
                 rotX -= deltaY * 0.6;
                 prevMousePos = { x: clientX, y: clientY };
@@ -872,10 +833,8 @@
             initialPinchDist = null;
         }
 
-        // 避免右鍵選單干擾
         cubeScene.addEventListener('contextmenu', e => e.preventDefault()); 
         
-        // 滾輪縮放
         cubeScene.addEventListener('wheel', e => { 
             if (cubeScene.style.display === 'none') return;
             e.preventDefault();
@@ -895,7 +854,7 @@
 
         window.onload = () => {
             initGrid();
-            renderLocks(); // 生成初始的 11 個鎖頭
+            renderLocks(); 
             
             const foldSlider = document.getElementById('foldSlider');
             if(foldSlider) {
