@@ -213,13 +213,17 @@
                         <span id="unfold-text">展開成摺紙圖</span>
                     </button>
 
-                    <!-- 正方體鎖定模式 -->
-                    <div id="cube-mode-container" class="hidden flex items-center justify-between bg-blue-50/80 p-2 rounded-lg border border-blue-200 shadow-inner mt-1">
-                        <span class="text-[11px] text-blue-800 font-bold flex items-center gap-1">🧊 變換為正方體 (等邊)</span>
-                        <label class="relative inline-flex items-center cursor-pointer">
-                          <input type="checkbox" id="cube-toggle" class="sr-only peer" onchange="toggleCubeMode()">
-                          <div class="w-8 h-4 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3.5 after:transition-all peer-checked:bg-blue-600"></div>
-                        </label>
+                    <!-- 四角柱變體選擇器 -->
+                    <div id="rect-variants-container" class="hidden flex-col gap-2 bg-blue-50/80 p-2.5 rounded-lg border border-blue-200 shadow-inner mt-1">
+                        <span class="text-[11px] text-blue-800 font-bold flex items-center gap-1">🧊 變換底面形狀 (四角柱)</span>
+                        <select id="rect-variant-select" class="w-full text-xs p-1.5 rounded border border-blue-300 bg-white text-blue-900 font-bold cursor-pointer outline-none focus:ring-2 focus:ring-blue-400" onchange="changeRectVariant(this.value)">
+                            <option value="square">長方體(正方形底)</option>
+                            <option value="cube">正方體</option>
+                            <option value="rect">長方體(長方底)</option>
+                            <option value="trapezoid">梯形底四角柱</option>
+                            <option value="parallelogram">平行四邊形底四角柱</option>
+                            <option value="rhombus">菱形底四角柱</option>
+                        </select>
                     </div>
 
                     <div class="flex items-center gap-3 bg-white p-2.5 rounded-xl border border-gray-100">
@@ -232,10 +236,10 @@
                                 </div>
                                 <input type="range" id="height-slider" min="1" max="6" step="0.1" value="2.5" class="w-full h-1.5 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-500">
                             </div>
-                            <!-- 闊度調整 -->
+                            <!-- 闊度/比例調整 -->
                             <div class="flex flex-col">
                                 <div class="flex justify-between items-baseline mb-0.5">
-                                    <label class="text-[10px] text-gray-500 font-bold uppercase">闊度</label>
+                                    <label class="text-[10px] text-gray-500 font-bold uppercase">尺寸基準</label>
                                     <span id="width-val" class="text-[9px] text-indigo-500 font-bold">1.5</span>
                                 </div>
                                 <input type="range" id="width-slider" min="0.5" max="4" step="0.1" value="1.5" class="w-full h-1.5 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-500">
@@ -267,7 +271,6 @@
         let mainGroup; 
         let gridHelper;
         
-        // 狀態管理
         let selectedShapes = ['cylinder']; 
         let isCompareMode = false;
         
@@ -275,7 +278,7 @@
         let currentBaseSize = 1.5; 
         
         let rotX = 0, rotY = 0, rotZ = 0; 
-        let isCubeMode = false; 
+        let rectPrismVariant = 'square'; // 四角柱變體狀態
         
         let isTransparent = false;
         let isUnfolded = false;
@@ -338,9 +341,7 @@
             controls.autoRotate = true;
             controls.autoRotateSpeed = 1.0; 
             
-            controls.addEventListener('start', function() {
-                controls.autoRotate = false;
-            });
+            controls.addEventListener('start', function() { controls.autoRotate = false; });
 
             mainGroup = new THREE.Group();
             scene.add(mainGroup);
@@ -364,16 +365,13 @@
             canvas.width = 128;
             canvas.height = 128;
             const ctx = canvas.getContext('2d');
-
             ctx.fillStyle = '#f59e0b';
             ctx.beginPath();
             ctx.arc(64, 64, 50, 0, 2 * Math.PI);
             ctx.fill();
-
             ctx.lineWidth = 6;
             ctx.strokeStyle = '#ffffff';
             ctx.stroke();
-
             ctx.fillStyle = '#ffffff';
             ctx.font = 'bold 50px "Noto Sans TC", sans-serif';
             ctx.textAlign = 'center';
@@ -381,11 +379,7 @@
             ctx.fillText(text, 64, 68);
 
             const texture = new THREE.CanvasTexture(canvas);
-            const material = new THREE.SpriteMaterial({ 
-                map: texture, 
-                depthTest: true,
-                clippingPlanes: planes
-            });
+            const material = new THREE.SpriteMaterial({ map: texture, depthTest: true, clippingPlanes: planes });
             const sprite = new THREE.Sprite(material);
             sprite.scale.set(0.8, 0.8, 1);
             sprite.userData.isLabel = true;
@@ -397,90 +391,54 @@
             canvas.width = 256;
             canvas.height = 128;
             const ctx = canvas.getContext('2d');
-
             ctx.fillStyle = '#8b5cf6';
-            
             const r = 34, x = 28, y = 30, w = 200, h = 68;
             ctx.beginPath();
-            ctx.moveTo(x + r, y);
-            ctx.lineTo(x + w - r, y);
-            ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-            ctx.lineTo(x + w, y + h - r);
-            ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-            ctx.lineTo(x + r, y + h);
-            ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-            ctx.lineTo(x, y + r);
-            ctx.quadraticCurveTo(x, y, x + r, y);
-            ctx.closePath();
+            ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+            ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+            ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+            ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
             ctx.fill();
-
-            ctx.lineWidth = 6;
-            ctx.strokeStyle = '#ffffff';
-            ctx.stroke();
-
-            ctx.fillStyle = '#ffffff';
-            ctx.font = 'bold 42px "Noto Sans TC", sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
+            ctx.lineWidth = 6; ctx.strokeStyle = '#ffffff'; ctx.stroke();
+            ctx.fillStyle = '#ffffff'; ctx.font = 'bold 42px "Noto Sans TC", sans-serif';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.fillText(text, 128, 68);
 
             const texture = new THREE.CanvasTexture(canvas);
-            const material = new THREE.SpriteMaterial({
-                map: texture,
-                depthTest: true,
-                clippingPlanes: planes
-            });
+            const material = new THREE.SpriteMaterial({ map: texture, depthTest: true, clippingPlanes: planes });
             const sprite = new THREE.Sprite(material);
             sprite.scale.set(1.4, 0.7, 1);
             sprite.userData.isPartName = true;
             return sprite;
         }
 
-        // 產生長度標示精靈圖
         function createLengthSprite(text, planes = []) {
             const canvas = document.createElement('canvas');
             canvas.width = 160;
             canvas.height = 64;
             const ctx = canvas.getContext('2d');
-
             ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
             ctx.beginPath();
             const r = 16, x = 4, y = 4, w = 152, h = 56;
-            ctx.moveTo(x + r, y);
-            ctx.lineTo(x + w - r, y);
-            ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-            ctx.lineTo(x + w, y + h - r);
-            ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-            ctx.lineTo(x + r, y + h);
-            ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-            ctx.lineTo(x, y + r);
-            ctx.quadraticCurveTo(x, y, x + r, y);
-            ctx.closePath();
+            ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+            ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+            ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+            ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
             ctx.fill();
-
-            ctx.lineWidth = 4;
-            ctx.strokeStyle = '#f43f5e'; 
-            ctx.stroke();
-
-            ctx.fillStyle = '#f43f5e';
-            ctx.font = 'bold 36px "Noto Sans TC", sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
+            ctx.lineWidth = 4; ctx.strokeStyle = '#f43f5e'; ctx.stroke();
+            ctx.fillStyle = '#f43f5e'; ctx.font = 'bold 36px "Noto Sans TC", sans-serif';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.fillText(text, 80, 34);
 
             const texture = new THREE.CanvasTexture(canvas);
-            const material = new THREE.SpriteMaterial({
-                map: texture,
-                depthTest: true, // [修正] 啟用深度測試，讓標籤會被圖形自動遮擋
-                clippingPlanes: planes
-            });
+            const material = new THREE.SpriteMaterial({ map: texture, depthTest: true, clippingPlanes: planes });
             const sprite = new THREE.Sprite(material);
             sprite.scale.set(0.6, 0.24, 1);
             sprite.userData.isLengthLabel = true;
-            // [修正] 移除 renderOrder，使其遵循一般渲染層級
             return sprite;
         }
 
+        // 取得正多邊形頂點
         function getPolygonVertices(n, r) {
             const vertices = [];
             const startAngle = -Math.PI/2 - Math.PI/n;
@@ -491,13 +449,37 @@
             return vertices;
         }
 
+        // 取得自定義四角柱底面頂點 (逆時針排列)
+        function getRectPrismPoints(variant, r) {
+            if (variant === 'square' || variant === 'cube') return [new THREE.Vector2(-r, -r), new THREE.Vector2(r, -r), new THREE.Vector2(r, r), new THREE.Vector2(-r, r)];
+            if (variant === 'rect') return [new THREE.Vector2(-1.5*r, -r), new THREE.Vector2(1.5*r, -r), new THREE.Vector2(1.5*r, r), new THREE.Vector2(-1.5*r, r)];
+            if (variant === 'parallelogram') return [new THREE.Vector2(-r-0.6*r, -r), new THREE.Vector2(r-0.6*r, -r), new THREE.Vector2(r+0.6*r, r), new THREE.Vector2(-r+0.6*r, r)];
+            if (variant === 'trapezoid') return [new THREE.Vector2(-1.2*r, -r), new THREE.Vector2(1.2*r, -r), new THREE.Vector2(0.6*r, r), new THREE.Vector2(-0.6*r, r)];
+            if (variant === 'rhombus') return [new THREE.Vector2(0, -1.4*r), new THREE.Vector2(r, 0), new THREE.Vector2(0, 1.4*r), new THREE.Vector2(-r, 0)];
+            return [new THREE.Vector2(-r, -r), new THREE.Vector2(r, -r), new THREE.Vector2(r, r), new THREE.Vector2(-r, r)];
+        }
+
+        // 轉換多邊形頂點，使其指定邊水平貼齊於原點 (用於計算展開圖底面座標)
+        function alignShapeEdgeToBottom(pts, edgeIndex) {
+            const p0 = pts[edgeIndex];
+            const p1 = pts[(edgeIndex + 1) % pts.length];
+            const center = new THREE.Vector2().addVectors(p0, p1).multiplyScalar(0.5);
+            const angle = Math.atan2(p1.y - p0.y, p1.x - p0.x);
+            
+            return pts.map(p => {
+                const v = new THREE.Vector2(p.x, p.y).sub(center);
+                const cos = Math.cos(-angle);
+                const sin = Math.sin(-angle);
+                return new THREE.Vector2(v.x * cos - v.y * sin, v.x * sin + v.y * cos);
+            });
+        }
+
         function createThickEdges(geometry, color, type, isCurved) {
             const edgeGeo = new THREE.EdgesGeometry(geometry, 25); 
             const positions = edgeGeo.attributes.position.array;
             const group = new THREE.Group();
             const mat = new THREE.MeshBasicMaterial({ color: color });
             const thickness = 0.04;
-
             const addedMidpoints = [];
 
             for (let i = 0; i < positions.length; i += 6) {
@@ -516,30 +498,20 @@
                 mesh.position.copy(start);
                 mesh.lookAt(end);
                 mesh.userData.isEdge = true; 
-                
                 group.add(mesh);
 
-                // 為非曲面的直稜添加長度標籤
                 if (!isCurved) {
                     const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
-                    
-                    // 避免在同一位置重複生成標籤
                     let isDuplicate = false;
-                    for(let m of addedMidpoints) {
-                        if (m.distanceTo(mid) < 0.05) { isDuplicate = true; break; }
-                    }
+                    for(let m of addedMidpoints) { if (m.distanceTo(mid) < 0.05) { isDuplicate = true; break; } }
                     
                     if (!isDuplicate) {
                         addedMidpoints.push(mid);
-                        const lengthText = len.toFixed(1);
-                        const sprite = createLengthSprite(lengthText);
-                        
-                        // 使標籤稍微偏離中心，避免被圖形完全包覆
+                        const sprite = createLengthSprite(len.toFixed(1));
                         const centerDir = mid.clone();
-                        centerDir.y = 0; // 偏向水平推移
+                        centerDir.y = 0;
                         if (centerDir.length() < 0.01) centerDir.set(0, 1, 0);
                         centerDir.normalize();
-                        
                         sprite.position.copy(mid).add(centerDir.multiplyScalar(0.18));
                         group.add(sprite);
                     }
@@ -559,14 +531,11 @@
             if (options.clippingPlanes) material.clippingPlanes = options.clippingPlanes;
 
             const mesh = new THREE.Mesh(geometry, material);
-            mesh.userData.isFace = true; 
-            mesh.userData.shapeType = type;
+            mesh.userData.isFace = true; mesh.userData.shapeType = type;
             
             if (showEdges && type !== 'sphere') {
                 const thickEdges = createThickEdges(geometry, edgeColor, type, isCurved);
-                if(options.clippingPlanes) thickEdges.traverse(c => { 
-                    if(c.isMesh || c.isSprite) c.material.clippingPlanes = options.clippingPlanes; 
-                });
+                if(options.clippingPlanes) thickEdges.traverse(c => { if(c.isMesh || c.isSprite) c.material.clippingPlanes = options.clippingPlanes; });
                 mesh.add(thickEdges);
             }
 
@@ -574,7 +543,6 @@
                 const sphereGeo = new THREE.SphereGeometry(0.12, 8, 8);
                 const sphereMat = new THREE.MeshBasicMaterial({ color: vertexColor, clippingPlanes: options.clippingPlanes || [] });
                 const pos = geometry.attributes.position;
-                
                 const addedVertices = new Set();
 
                 for(let i=0; i<pos.count; i++){
@@ -584,7 +552,7 @@
                     
                     if(type.includes('cylinder') || type === 'sphere') skip = true;
                     else if (type === 'cone') { if (!isAxis || y < 0) skip = true; }
-                    else if(type.includes('Prism') && isAxis) skip = true; 
+                    else if(type.includes('Prism') && isAxis && type !== 'rectPrism') skip = true; // rectPrism uses Extrude, no inner axis vertices
                     else if(type.includes('Pyramid')) { if (isAxis && y < 0) skip = true; }
 
                     if(!skip) {
@@ -606,34 +574,28 @@
         function createSolidWithSection(type, geometry, showVertices, planes, stencilRef, isCurved) {
             const group = new THREE.Group();
             const mat = new THREE.MeshPhongMaterial({
-                color: shapeColor, shininess: 60, specular: 0x444444,
-                flatShading: !(type.includes('cylinder')||type==='sphere'||type==='cone'),
+                color: shapeColor, shininess: 60, specular: 0x444444, flatShading: !(type.includes('cylinder')||type==='sphere'||type==='cone'),
                 side: THREE.DoubleSide, clippingPlanes: planes
             });
             const mesh = new THREE.Mesh(geometry, mat);
-            mesh.userData.isFace = true; 
-            mesh.userData.shapeType = type;
+            mesh.userData.isFace = true; mesh.userData.shapeType = type;
             group.add(mesh);
             
             const stencilMat = new THREE.MeshBasicMaterial({ 
-                color: 0, side: THREE.BackSide, clippingPlanes: planes, 
-                colorWrite: false, depthWrite: false, 
-                stencilWrite: true, stencilFunc: THREE.AlwaysStencilFunc, 
-                stencilRef: stencilRef,
+                color: 0, side: THREE.BackSide, clippingPlanes: planes, colorWrite: false, depthWrite: false, 
+                stencilWrite: true, stencilFunc: THREE.AlwaysStencilFunc, stencilRef: stencilRef,
                 stencilFail: THREE.KeepStencilOp, stencilZFail: THREE.KeepStencilOp, stencilZPass: THREE.IncrementStencilOp 
             });
             group.add(new THREE.Mesh(geometry, stencilMat));
             
             if(type !== 'sphere') {
                 const edges = createThickEdges(geometry, edgeColor, type, isCurved);
-                edges.traverse(c=>{
-                    if(c.isMesh || c.isSprite) { c.material.clippingPlanes=planes; c.userData.shapeType = type; }
-                });
+                edges.traverse(c=>{ if(c.isMesh || c.isSprite) { c.material.clippingPlanes=planes; c.userData.shapeType = type; } });
                 group.add(edges);
             }
             return group;
         }
-        
+
         function updateClipPlanes() {
             if (sliceMode === 'none') return;
             scene.updateMatrixWorld(true);
@@ -649,10 +611,8 @@
                     let normal = new THREE.Vector3(0, -1, 0); 
                     if (sliceMode === 'z') normal.set(0, 0, -1);
                     else if (sliceMode === 'oblique') normal.set(0, -1, -1).normalize();
-                    
                     slice.plane.normal.copy(normal);
                     slice.plane.constant = sliceValue; 
-                    
                     slice.capMesh.setRotationFromQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal));
                     slice.capMesh.position.copy(normal.clone().multiplyScalar(-sliceValue));
                 }
@@ -661,46 +621,45 @@
 
         function addSolidLabels(group, type, r, h, nSides, isCurved, planes) {
             const offset = 0.2; 
-            
             if (type === 'sphere') {
-                const sprite = createTextSprite(1, planes);
-                sprite.position.set(0, r + offset, 0); 
-                group.add(sprite);
+                const sprite = createTextSprite(1, planes); sprite.position.set(0, r + offset, 0); group.add(sprite);
+            } else if (type === 'rectPrism') {
+                // 針對四角柱特製的面標籤
+                const pts = getRectPrismPoints(rectPrismVariant, r);
+                let cx = 0, cy = 0;
+                for(let p of pts) { cx += p.x; cy += p.y; } cx /= pts.length; cy /= pts.length;
+                
+                const topSprite = createTextSprite(1, planes); topSprite.position.set(cx, h/2 + offset, -cy); group.add(topSprite);
+                const bottomSprite = createTextSprite(2, planes); bottomSprite.position.set(cx, -h/2 - offset, -cy); group.add(bottomSprite);
+
+                for (let i = 0; i < 4; i++) {
+                    const p0 = pts[i], p1 = pts[(i+1)%4];
+                    const mid = new THREE.Vector2().addVectors(p0, p1).multiplyScalar(0.5);
+                    const normal = new THREE.Vector2(p1.y - p0.y, -(p1.x - p0.x)).normalize();
+                    const sprite = createTextSprite(3 + i, planes);
+                    sprite.position.set(mid.x + normal.x * offset, 0, -(mid.y + normal.y * offset));
+                    group.add(sprite);
+                }
             } else if (type.includes('Prism') || type === 'cylinder') {
-                const topSprite = createTextSprite(1, planes);
-                topSprite.position.set(0, h/2 + offset, 0);
-                group.add(topSprite);
-                
-                const bottomSprite = createTextSprite(2, planes);
-                bottomSprite.position.set(0, -h/2 - offset, 0);
-                group.add(bottomSprite);
-                
+                const topSprite = createTextSprite(1, planes); topSprite.position.set(0, h/2 + offset, 0); group.add(topSprite);
+                const bottomSprite = createTextSprite(2, planes); bottomSprite.position.set(0, -h/2 - offset, 0); group.add(bottomSprite);
                 if (isCurved) {
-                    const sideSprite = createTextSprite(3, planes);
-                    sideSprite.position.set(0, 0, r + offset);
-                    group.add(sideSprite);
+                    const sideSprite = createTextSprite(3, planes); sideSprite.position.set(0, 0, r + offset); group.add(sideSprite);
                 } else {
                     const apothem = r * Math.cos(Math.PI / nSides);
                     const startAngle = Math.PI / nSides; 
                     for (let i = 0; i < nSides; i++) {
                         const theta = startAngle + i * (2 * Math.PI / nSides);
                         const sprite = createTextSprite(3 + i, planes);
-                        const px = (apothem + offset) * Math.sin(theta); 
-                        const pz = (apothem + offset) * Math.cos(theta);
-                        sprite.position.set(px, 0, pz);
+                        sprite.position.set((apothem + offset) * Math.sin(theta), 0, (apothem + offset) * Math.cos(theta));
                         group.add(sprite);
                     }
                 }
             } else if (type.includes('Pyramid') || type === 'cone') {
-                const bottomSprite = createTextSprite(1, planes);
-                bottomSprite.position.set(0, -h/2 - offset, 0);
-                group.add(bottomSprite);
-                
+                const bottomSprite = createTextSprite(1, planes); bottomSprite.position.set(0, -h/2 - offset, 0); group.add(bottomSprite);
                 if (isCurved) {
                     const sideSprite = createTextSprite(2, planes);
-                    const currentRadius = r * (2/3);
-                    sideSprite.position.set(0, 0, currentRadius + offset * 1.5); 
-                    group.add(sideSprite);
+                    sideSprite.position.set(0, 0, r * (2/3) + offset * 1.5); group.add(sideSprite);
                 } else {
                     const apothem = r * Math.cos(Math.PI / nSides);
                     const startAngle = Math.PI / nSides;
@@ -708,9 +667,7 @@
                         const theta = startAngle + i * (2 * Math.PI / nSides);
                         const sprite = createTextSprite(2 + i, planes);
                         const baseDist = (apothem * 2/3) + offset;
-                        const px = baseDist * Math.sin(theta);
-                        const pz = baseDist * Math.cos(theta);
-                        sprite.position.set(px, 0, pz);
+                        sprite.position.set(baseDist * Math.sin(theta), 0, baseDist * Math.cos(theta));
                         group.add(sprite);
                     }
                 }
@@ -719,51 +676,45 @@
 
         function addPartNameLabels(group, type, r, h, nSides, isCurved, planes) {
             const offset = 0.6; 
-
             if (type === 'sphere') {
-                const sprite = createPartNameSprite('曲面', planes);
-                sprite.position.set(0, r + offset, 0);
+                const sprite = createPartNameSprite('曲面', planes); sprite.position.set(0, r + offset, 0); group.add(sprite);
+            } else if (type === 'rectPrism') {
+                const pts = getRectPrismPoints(rectPrismVariant, r);
+                let cx = 0, cy = 0;
+                for(let p of pts) { cx += p.x; cy += p.y; } cx /= pts.length; cy /= pts.length;
+                
+                const topSprite = createPartNameSprite('底', planes); topSprite.position.set(cx, h/2 + offset, -cy); group.add(topSprite);
+                const bottomSprite = createPartNameSprite('底', planes); bottomSprite.position.set(cx, -h/2 - offset, -cy); group.add(bottomSprite);
+
+                const p0 = pts[0], p1 = pts[1];
+                const mid = new THREE.Vector2().addVectors(p0, p1).multiplyScalar(0.5);
+                const normal = new THREE.Vector2(p1.y - p0.y, -(p1.x - p0.x)).normalize();
+                const sprite = createPartNameSprite('側面', planes);
+                sprite.position.set(mid.x + normal.x * offset, 0.4, -(mid.y + normal.y * offset));
                 group.add(sprite);
             } else if (type.includes('Prism') || type === 'cylinder') {
-                const topSprite = createPartNameSprite('底', planes);
-                topSprite.position.set(0, h/2 + offset, 0);
-                group.add(topSprite);
-
-                const bottomSprite = createPartNameSprite('底', planes);
-                bottomSprite.position.set(0, -h/2 - offset, 0);
-                group.add(bottomSprite);
-
+                const topSprite = createPartNameSprite('底', planes); topSprite.position.set(0, h/2 + offset, 0); group.add(topSprite);
+                const bottomSprite = createPartNameSprite('底', planes); bottomSprite.position.set(0, -h/2 - offset, 0); group.add(bottomSprite);
                 if (isCurved) {
-                    const sideSprite = createPartNameSprite('曲面', planes);
-                    sideSprite.position.set(0, 0.4, r + offset);
-                    group.add(sideSprite);
+                    const sideSprite = createPartNameSprite('曲面', planes); sideSprite.position.set(0, 0.4, r + offset); group.add(sideSprite);
                 } else {
                     const apothem = r * Math.cos(Math.PI / nSides);
                     const theta = Math.PI / nSides;
-                    const px = (apothem + offset) * Math.sin(theta);
-                    const pz = (apothem + offset) * Math.cos(theta);
                     const sprite = createPartNameSprite('側面', planes);
-                    sprite.position.set(px, 0.4, pz);
+                    sprite.position.set((apothem + offset) * Math.sin(theta), 0.4, (apothem + offset) * Math.cos(theta));
                     group.add(sprite);
                 }
             } else if (type.includes('Pyramid') || type === 'cone') {
-                const bottomSprite = createPartNameSprite('底', planes);
-                bottomSprite.position.set(0, -h/2 - offset, 0);
-                group.add(bottomSprite);
-
+                const bottomSprite = createPartNameSprite('底', planes); bottomSprite.position.set(0, -h/2 - offset, 0); group.add(bottomSprite);
                 if (isCurved) {
                     const sideSprite = createPartNameSprite('曲面', planes);
-                    const currentRadius = r * (2/3);
-                    sideSprite.position.set(0, 0.4, currentRadius + offset * 1.5);
-                    group.add(sideSprite);
+                    sideSprite.position.set(0, 0.4, r * (2/3) + offset * 1.5); group.add(sideSprite);
                 } else {
                     const apothem = r * Math.cos(Math.PI / nSides);
                     const theta = Math.PI / nSides;
                     const baseDist = (apothem * 2/3) + offset;
-                    const px = baseDist * Math.sin(theta);
-                    const pz = baseDist * Math.cos(theta);
                     const sprite = createPartNameSprite('側面', planes);
-                    sprite.position.set(px, 0.4, pz);
+                    sprite.position.set(baseDist * Math.sin(theta), 0.4, baseDist * Math.cos(theta));
                     group.add(sprite);
                 }
             }
@@ -778,7 +729,16 @@
             const isCurved = (type === 'cylinder' || type === 'cone' || type === 'sphere');
 
             let geo;
-            if (type === 'sphere') {
+            if (type === 'rectPrism') {
+                const pts = getRectPrismPoints(rectPrismVariant, r);
+                const shape = new THREE.Shape();
+                shape.moveTo(pts[0].x, pts[0].y);
+                for(let i=1; i<pts.length; i++) shape.lineTo(pts[i].x, pts[i].y);
+                shape.closePath();
+                geo = new THREE.ExtrudeGeometry(shape, { depth: h, bevelEnabled: false });
+                geo.translate(0, 0, -h/2);
+                geo.rotateX(-Math.PI/2);
+            } else if (type === 'sphere') {
                 geo = new THREE.SphereGeometry(r, 64, 64);
             } else if (type.includes('Prism') || type === 'cylinder') {
                 geo = new THREE.CylinderGeometry(r, r, h, isCurved ? 64 : nSides);
@@ -786,8 +746,8 @@
                 geo = new THREE.ConeGeometry(r, h, isCurved ? 64 : nSides);
             }
 
-            if (type.includes('rect')) geo.rotateY(Math.PI/4);
-            if (!isCurved && type !== 'sphere') geo.rotateY(Math.PI/2 - Math.PI/nSides);
+            if (type.includes('rectPyramid')) geo.rotateY(Math.PI/4);
+            if (!isCurved && type !== 'sphere' && type !== 'rectPrism') geo.rotateY(Math.PI/2 - Math.PI/nSides);
 
             let meshOrGroup;
             if (sliceMode !== 'none') {
@@ -817,22 +777,72 @@
             if (type.includes('pent')) nSides = 5;
             if (type.includes('hex')) nSides = 6;
             if (type.includes('hept')) nSides = 7;
-            
             const isCurved = (type === 'cylinder' || type === 'cone');
             if (isCurved) nSides = 64;
-
             const labelOffset = 0.05;
 
-            function getPolyShape(n, radius) {
-                const shape = new THREE.Shape();
-                const vertices2D = getPolygonVertices(n, radius);
-                shape.moveTo(vertices2D[0].x, vertices2D[0].y);
-                for(let i=1; i<n; i++) shape.lineTo(vertices2D[i].x, vertices2D[i].y);
-                shape.closePath();
-                return shape;
-            }
+            if (type === 'rectPrism') {
+                // 特製的多樣化四角柱展開圖
+                const pts = getRectPrismPoints(rectPrismVariant, r);
+                const widths = [];
+                let totalWidth = 0;
+                for (let i=0; i<4; i++) {
+                    const w = pts[i].distanceTo(pts[(i+1)%4]);
+                    widths.push(w);
+                    totalWidth += w;
+                }
 
-            if (type.includes('Prism') || type === 'cylinder') {
+                let currentX = -totalWidth / 2;
+                const midIndex = 1; // 底面接在第2個側面
+                let attachX = 0;
+
+                for (let i = 0; i < 4; i++) {
+                    const panelW = widths[i];
+                    const planeMesh = createFaceMesh(type, new THREE.PlaneGeometry(panelW, h), { showVertices: true, flatShading: true, isCurved: false });
+                    const panelCenterX = currentX + panelW / 2;
+                    planeMesh.position.set(panelCenterX, 0, 0);
+
+                    const sprite = createTextSprite(3 + i); sprite.position.set(0, 0, labelOffset); planeMesh.add(sprite);
+
+                    if (i === midIndex) {
+                        attachX = panelCenterX;
+                        const partSprite = createPartNameSprite('側面');
+                        partSprite.position.set(0, -0.6, labelOffset + 0.01);
+                        planeMesh.add(partSprite);
+                    }
+                    root.add(planeMesh);
+                    currentX += panelW;
+                }
+
+                const topPts = alignShapeEdgeToBottom(pts, midIndex);
+                let cx = 0, cy = 0;
+                for(let p of topPts) { cx += p.x; cy += p.y; } cx /= topPts.length; cy /= topPts.length;
+
+                const topShape = new THREE.Shape();
+                topShape.moveTo(topPts[0].x, topPts[0].y);
+                for(let i=1; i<topPts.length; i++) topShape.lineTo(topPts[i].x, topPts[i].y);
+                topShape.closePath();
+
+                const topMesh = createFaceMesh(type, new THREE.ShapeGeometry(topShape), { showVertices: true, flatShading: true, isCurved: false });
+                topMesh.position.set(attachX, h/2, 0);
+                
+                const topSprite = createTextSprite(1); topSprite.position.set(cx, cy, labelOffset); topMesh.add(topSprite);
+                const topPartSprite = createPartNameSprite('底'); topPartSprite.position.set(cx, cy - 0.6, labelOffset + 0.01); topMesh.add(topPartSprite);
+                root.add(topMesh);
+
+                const bottomShape = new THREE.Shape();
+                bottomShape.moveTo(topPts[0].x, -topPts[0].y);
+                for(let i=1; i<topPts.length; i++) bottomShape.lineTo(topPts[i].x, -topPts[i].y);
+                bottomShape.closePath();
+
+                const bottomMesh = createFaceMesh(type, new THREE.ShapeGeometry(bottomShape), { showVertices: true, flatShading: true, isCurved: false });
+                bottomMesh.position.set(attachX, -h/2, 0);
+
+                const bottomSprite = createTextSprite(2); bottomSprite.position.set(cx, -cy, labelOffset); bottomMesh.add(bottomSprite);
+                const bottomPartSprite = createPartNameSprite('底'); bottomPartSprite.position.set(cx, -cy - 0.6, labelOffset + 0.01); bottomMesh.add(bottomPartSprite);
+                root.add(bottomMesh);
+
+            } else if (type.includes('Prism') || type === 'cylinder') {
                 const sideWidth = isCurved ? (2 * Math.PI * r) / 64 : 2 * r * Math.sin(Math.PI / nSides);
                 const totalWidth = isCurved ? (2 * Math.PI * r) : nSides * sideWidth;
                 const apothem = r * Math.cos(Math.PI / nSides);
@@ -842,53 +852,37 @@
                 const midIndex = Math.floor((numPanels - 1) / 2);
 
                 for (let i = 0; i < numPanels; i++) {
-                    const planeGeo = new THREE.PlaneGeometry(panelWidth, h);
-                    const planeMesh = createFaceMesh(type, planeGeo, { showVertices: !isCurved, flatShading: !isCurved, isCurved: false });
+                    const planeMesh = createFaceMesh(type, new THREE.PlaneGeometry(panelWidth, h), { showVertices: !isCurved, flatShading: !isCurved, isCurved: false });
                     const xPos = (i - (numPanels - 1) / 2) * panelWidth;
                     planeMesh.position.set(xPos, 0, 0);
                     
-                    const sprite = createTextSprite(3 + i);
-                    sprite.position.set(0, 0, labelOffset);
-                    planeMesh.add(sprite);
+                    const sprite = createTextSprite(3 + i); sprite.position.set(0, 0, labelOffset); planeMesh.add(sprite);
 
                     if (i === midIndex) {
-                        const partName = isCurved ? '曲面' : '側面';
-                        const partSprite = createPartNameSprite(partName);
-                        partSprite.position.set(0, -0.6, labelOffset + 0.01);
-                        planeMesh.add(partSprite);
+                        const partSprite = createPartNameSprite(isCurved ? '曲面' : '側面');
+                        partSprite.position.set(0, -0.6, labelOffset + 0.01); planeMesh.add(partSprite);
                     }
-                    
                     root.add(planeMesh);
                 }
 
-                const baseShape = getPolyShape(isCurved ? 64 : nSides, r);
+                const baseShape = new THREE.Shape();
+                const v2d = getPolygonVertices(isCurved ? 64 : nSides, r);
+                baseShape.moveTo(v2d[0].x, v2d[0].y); for(let i=1; i<v2d.length; i++) baseShape.lineTo(v2d[i].x, v2d[i].y); baseShape.closePath();
+                
                 const baseGeo = new THREE.ShapeGeometry(baseShape);
                 const midX = (midIndex - (numPanels - 1) / 2) * panelWidth;
                 const offset = isCurved ? r : apothem;
 
                 const topMesh = createFaceMesh(type, baseGeo, { showVertices: !isCurved, flatShading: !isCurved, isCurved: isCurved });
                 topMesh.position.set(midX, h/2 + offset, 0);
-                const topSprite = createTextSprite(1); 
-                topSprite.position.set(0, 0, labelOffset);
-                topMesh.add(topSprite);
-                
-                const topPartSprite = createPartNameSprite('底');
-                topPartSprite.position.set(0, -0.6, labelOffset + 0.01);
-                topMesh.add(topPartSprite);
-                
+                const topSprite = createTextSprite(1); topSprite.position.set(0, 0, labelOffset); topMesh.add(topSprite);
+                const topPartSprite = createPartNameSprite('底'); topPartSprite.position.set(0, -0.6, labelOffset + 0.01); topMesh.add(topPartSprite);
                 root.add(topMesh);
 
                 const bottomMesh = createFaceMesh(type, baseGeo, { showVertices: !isCurved, flatShading: !isCurved, isCurved: isCurved });
-                bottomMesh.position.set(midX, -h/2 - offset, 0);
-                bottomMesh.rotation.z = Math.PI;
-                const bottomSprite = createTextSprite(2); 
-                bottomSprite.position.set(0, 0, labelOffset);
-                bottomMesh.add(bottomSprite);
-
-                const bottomPartSprite = createPartNameSprite('底');
-                bottomPartSprite.position.set(0, -0.6, labelOffset + 0.01);
-                bottomMesh.add(bottomPartSprite);
-
+                bottomMesh.position.set(midX, -h/2 - offset, 0); bottomMesh.rotation.z = Math.PI;
+                const bottomSprite = createTextSprite(2); bottomSprite.position.set(0, 0, labelOffset); bottomMesh.add(bottomSprite);
+                const bottomPartSprite = createPartNameSprite('底'); bottomPartSprite.position.set(0, -0.6, labelOffset + 0.01); bottomMesh.add(bottomPartSprite);
                 root.add(bottomMesh);
             }
 
@@ -898,79 +892,53 @@
                     const apothem = r * Math.cos(Math.PI / nSides);
                     const slantHeight = Math.sqrt(h * h + apothem * apothem);
 
-                    const baseShape = getPolyShape(nSides, r);
+                    const baseShape = new THREE.Shape();
+                    const v2d = getPolygonVertices(nSides, r);
+                    baseShape.moveTo(v2d[0].x, v2d[0].y); for(let i=1; i<nSides; i++) baseShape.lineTo(v2d[i].x, v2d[i].y); baseShape.closePath();
+                    
                     const baseMesh = createFaceMesh(type, new THREE.ShapeGeometry(baseShape), { showVertices: true, flatShading: true, isCurved: false });
-                    const baseSprite = createTextSprite(1); 
-                    baseSprite.position.set(0, 0, labelOffset);
-                    baseMesh.add(baseSprite);
-
-                    const basePartSprite = createPartNameSprite('底');
-                    basePartSprite.position.set(0, -0.6, labelOffset + 0.01);
-                    baseMesh.add(basePartSprite);
-
+                    const baseSprite = createTextSprite(1); baseSprite.position.set(0, 0, labelOffset); baseMesh.add(baseSprite);
+                    const basePartSprite = createPartNameSprite('底'); basePartSprite.position.set(0, -0.6, labelOffset + 0.01); baseMesh.add(basePartSprite);
                     root.add(baseMesh);
 
                     const midTri = Math.floor((nSides - 1) / 2);
                     for (let i = 0; i < nSides; i++) {
                         const triShape = new THREE.Shape();
-                        triShape.moveTo(-sideWidth/2, 0);
-                        triShape.lineTo(sideWidth/2, 0);
-                        triShape.lineTo(0, slantHeight); 
-                        triShape.closePath();
+                        triShape.moveTo(-sideWidth/2, 0); triShape.lineTo(sideWidth/2, 0); triShape.lineTo(0, slantHeight); triShape.closePath();
                         
                         const triMesh = createFaceMesh(type, new THREE.ShapeGeometry(triShape), { showVertices: true, flatShading: true, isCurved: false });
                         const theta = -Math.PI/2 + i * (2 * Math.PI / nSides); 
-                        
                         triMesh.position.set(apothem * Math.cos(theta), apothem * Math.sin(theta), 0);
                         triMesh.rotation.z = theta - Math.PI/2; 
                         
-                        const sprite = createTextSprite(2 + i); 
-                        sprite.position.set(0, slantHeight / 3, labelOffset); 
-                        triMesh.add(sprite);
-                        
+                        const sprite = createTextSprite(2 + i); sprite.position.set(0, slantHeight / 3, labelOffset); triMesh.add(sprite);
                         if (i === midTri) {
-                            const partSprite = createPartNameSprite('側面');
-                            partSprite.position.set(0, slantHeight / 3 - 0.5, labelOffset + 0.01);
-                            triMesh.add(partSprite);
+                            const partSprite = createPartNameSprite('側面'); partSprite.position.set(0, slantHeight / 3 - 0.5, labelOffset + 0.01); triMesh.add(partSprite);
                         }
-                        
                         root.add(triMesh);
                     }
                 } else {
                     const L = Math.sqrt(h*h + r*r);
-                    const arcLength = 2 * Math.PI * r;
-                    const theta = arcLength / L; 
+                    const theta = (2 * Math.PI * r) / L; 
 
                     const sectorShape = new THREE.Shape();
-                    sectorShape.moveTo(0, 0);
-                    sectorShape.absarc(0, 0, L, -theta/2, theta/2, false);
-                    sectorShape.lineTo(0, 0);
+                    sectorShape.moveTo(0, 0); sectorShape.absarc(0, 0, L, -theta/2, theta/2, false); sectorShape.lineTo(0, 0);
                     
                     const sectorMesh = createFaceMesh(type, new THREE.ShapeGeometry(sectorShape, 64), { showVertices: false, flatShading: false, isCurved: true });
-                    sectorMesh.rotation.z = -Math.PI/2; 
-                    sectorMesh.position.set(0, L, 0);   
+                    sectorMesh.rotation.z = -Math.PI/2; sectorMesh.position.set(0, L, 0);   
                     
-                    const sideSprite = createTextSprite(2);
-                    sideSprite.position.set(L * 0.6, 0, labelOffset); 
-                    sectorMesh.add(sideSprite);
-
-                    const sectorPartSprite = createPartNameSprite('曲面');
-                    sectorPartSprite.position.set(L * 0.6, -0.6, labelOffset + 0.01);
-                    sectorMesh.add(sectorPartSprite);
-                    
+                    const sideSprite = createTextSprite(2); sideSprite.position.set(L * 0.6, 0, labelOffset); sectorMesh.add(sideSprite);
+                    const sectorPartSprite = createPartNameSprite('曲面'); sectorPartSprite.position.set(L * 0.6, -0.6, labelOffset + 0.01); sectorMesh.add(sectorPartSprite);
                     root.add(sectorMesh);
 
-                    const baseShape = getPolyShape(64, r);
+                    const baseShape = new THREE.Shape();
+                    const v2d = getPolygonVertices(64, r);
+                    baseShape.moveTo(v2d[0].x, v2d[0].y); for(let i=1; i<64; i++) baseShape.lineTo(v2d[i].x, v2d[i].y); baseShape.closePath();
+                    
                     const baseMesh = createFaceMesh(type, new THREE.ShapeGeometry(baseShape), { showVertices: false, flatShading: false, isCurved: true });
                     baseMesh.position.set(0, -r, 0); 
-                    const baseSprite = createTextSprite(1);
-                    baseSprite.position.set(0, 0, labelOffset);
-                    baseMesh.add(baseSprite);
-
-                    const basePartSprite = createPartNameSprite('底');
-                    basePartSprite.position.set(0, -0.6, labelOffset + 0.01);
-                    baseMesh.add(basePartSprite);
-
+                    const baseSprite = createTextSprite(1); baseSprite.position.set(0, 0, labelOffset); baseMesh.add(baseSprite);
+                    const basePartSprite = createPartNameSprite('底'); basePartSprite.position.set(0, -0.6, labelOffset + 0.01); baseMesh.add(basePartSprite);
                     root.add(baseMesh);
                 }
             }
@@ -993,32 +961,17 @@
         
         function applyShapeRotation() {
             shapeSlices.forEach(slice => {
-                if (slice.pivotGroup) {
-                    slice.pivotGroup.rotation.set(
-                        THREE.MathUtils.degToRad(rotX),
-                        THREE.MathUtils.degToRad(rotY),
-                        THREE.MathUtils.degToRad(rotZ)
-                    );
-                }
+                if (slice.pivotGroup) slice.pivotGroup.rotation.set(THREE.MathUtils.degToRad(rotX), THREE.MathUtils.degToRad(rotY), THREE.MathUtils.degToRad(rotZ));
             });
             updateClipPlanes(); 
         }
 
         function updateShape() {
             mainGroup.clear();
-            
-            shapeSlices.forEach(s => {
-                if(s.capMesh && s.capMesh.parent) s.capMesh.parent.remove(s.capMesh);
-            });
+            shapeSlices.forEach(s => { if(s.capMesh && s.capMesh.parent) s.capMesh.parent.remove(s.capMesh); });
             shapeSlices = [];
             
-            let spacing = 5;
-            if (isUnfolded) {
-                spacing = Math.max(14, currentBaseSize * 2 * Math.PI + 2); 
-            } else {
-                spacing = Math.max(5, currentBaseSize * 2.5);
-            }
-            
+            let spacing = isUnfolded ? Math.max(16, currentBaseSize * 2 * Math.PI + 3) : Math.max(5, currentBaseSize * 3);
             const startX = -((selectedShapes.length - 1) * spacing) / 2;
 
             selectedShapes.forEach((type, index) => {
@@ -1038,28 +991,15 @@
                     wrapper.position.y = 0;
                 } else {
                     meshOrGroup = createSolidMesh(type, currentBaseSize, currentHeight, planesArray, stencilRef);
-                    const offsetY = (type === 'sphere') ? currentBaseSize : (currentHeight / 2);
-                    wrapper.position.y = offsetY; 
+                    wrapper.position.y = (type === 'sphere') ? currentBaseSize : (currentHeight / 2); 
                 }
                 
                 pivotGroup.add(meshOrGroup);
-                
-                pivotGroup.rotation.set(
-                    THREE.MathUtils.degToRad(rotX),
-                    THREE.MathUtils.degToRad(rotY),
-                    THREE.MathUtils.degToRad(rotZ)
-                );
-                
+                pivotGroup.rotation.set(THREE.MathUtils.degToRad(rotX), THREE.MathUtils.degToRad(rotY), THREE.MathUtils.degToRad(rotZ));
                 wrapper.add(pivotGroup);
                 mainGroup.add(wrapper);
                 
-                const capMat = new THREE.MeshBasicMaterial({ 
-                    color: sectionColor, 
-                    side: THREE.DoubleSide, 
-                    stencilWrite: true, 
-                    stencilFunc: THREE.EqualStencilFunc, 
-                    stencilRef: stencilRef 
-                });
+                const capMat = new THREE.MeshBasicMaterial({ color: sectionColor, side: THREE.DoubleSide, stencilWrite: true, stencilFunc: THREE.EqualStencilFunc, stencilRef: stencilRef });
                 const capMesh = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), capMat);
                 capMesh.visible = (sliceMode !== 'none');
                 capMesh.renderOrder = 1; 
@@ -1075,9 +1015,9 @@
         function resetCamera() {
             const count = selectedShapes.length;
             if (isUnfolded) {
-                if (count === 1) camera.position.set(0, 20, 0);
-                else if (count === 2) camera.position.set(0, 35, 0);
-                else camera.position.set(0, 50, 0); 
+                if (count === 1) camera.position.set(0, 22, 0);
+                else if (count === 2) camera.position.set(0, 38, 0);
+                else camera.position.set(0, 55, 0); 
             } else {
                 if (count === 1) camera.position.set(8, 6, 10);
                 else if (count === 2) camera.position.set(12, 8, 15);
@@ -1087,12 +1027,20 @@
             controls.update();
         }
 
-        window.toggleCubeMode = function() {
-            isCubeMode = document.getElementById('cube-toggle').checked;
-            if (isCubeMode) {
-                currentHeight = currentBaseSize * Math.sqrt(2);
+        window.changeRectVariant = function(variant) {
+            rectPrismVariant = variant;
+            if (variant === 'cube') {
+                currentHeight = currentBaseSize * 2;
                 document.getElementById('height-slider').value = currentHeight;
                 document.getElementById('height-val').innerText = currentHeight.toFixed(1);
+            } else if (variant === 'square' || variant === 'rect') {
+                // 當切換至長方體時，若當前長寬高剛好形成正方體，則自動調整高度使其不再是正方體
+                if (Math.abs(currentHeight - (currentBaseSize * 2)) < 0.05) {
+                    currentHeight = currentBaseSize * 2.5; 
+                    if (currentHeight > 6) currentHeight = currentBaseSize * 1.5;
+                    document.getElementById('height-slider').value = currentHeight;
+                    document.getElementById('height-val').innerText = currentHeight.toFixed(1);
+                }
             }
             updateSliceRange();
             updateShape();
@@ -1100,9 +1048,7 @@
 
         window.toggleCompareMode = function() {
             isCompareMode = document.getElementById('compare-mode-toggle').checked;
-            if (!isCompareMode && selectedShapes.length > 1) {
-                selectedShapes = [selectedShapes[0]];
-            }
+            if (!isCompareMode && selectedShapes.length > 1) selectedShapes = [selectedShapes[0]];
             updateInfoPanel();
             updateShapeSelectionUI();
             updateSliceRange();
@@ -1112,16 +1058,11 @@
 
         window.selectShape = function(type) {
             if (isCompareMode) {
-                if (selectedShapes.includes(type)) {
-                    if (selectedShapes.length > 1) selectedShapes = selectedShapes.filter(s => s !== type);
-                } else {
-                    if (selectedShapes.length < 3) selectedShapes.push(type);
-                    else { selectedShapes.shift(); selectedShapes.push(type); }
-                }
+                if (selectedShapes.includes(type)) { if (selectedShapes.length > 1) selectedShapes = selectedShapes.filter(s => s !== type); } 
+                else { if (selectedShapes.length < 3) selectedShapes.push(type); else { selectedShapes.shift(); selectedShapes.push(type); } }
             } else {
                 selectedShapes = [type];
             }
-            
             isUnfolded = false; 
             const btn = document.getElementById('unfold-btn');
             const txt = document.getElementById('unfold-text');
@@ -1137,34 +1078,22 @@
 
         function updateShapeSelectionUI() {
             document.querySelectorAll('.btn-shape').forEach(btn => {
-                const onclickAttr = btn.getAttribute('onclick');
-                const type = onclickAttr.match(/'([^']+)'/)[1];
-                if (selectedShapes.includes(type)) btn.classList.add('active');
-                else btn.classList.remove('active');
+                const type = btn.getAttribute('onclick').match(/'([^']+)'/)[1];
+                if (selectedShapes.includes(type)) btn.classList.add('active'); else btn.classList.remove('active');
             });
             
             const btn = document.getElementById('unfold-btn');
             const txt = document.getElementById('unfold-text');
-            const allSpheres = selectedShapes.every(s => s === 'sphere');
-            
-            if (allSpheres && sliceMode === 'none') {
+            if (selectedShapes.every(s => s === 'sphere') && sliceMode === 'none') {
                  btn.disabled = true; if(txt) txt.innerText = "球體不能展開"; btn.style.opacity='0.5';
             } else if (sliceMode === 'none') {
-                 btn.disabled = false; btn.style.opacity='1';
-                 if(txt) txt.innerText = isUnfolded ? "摺疊回立體" : "展開成摺紙圖";
+                 btn.disabled = false; btn.style.opacity='1'; if(txt) txt.innerText = isUnfolded ? "摺疊回立體" : "展開成摺紙圖";
             }
 
-            const cubeModeContainer = document.getElementById('cube-mode-container');
-            if (cubeModeContainer) {
-                if (selectedShapes.includes('rectPrism')) {
-                    cubeModeContainer.classList.remove('hidden');
-                } else {
-                    cubeModeContainer.classList.add('hidden');
-                    if (document.getElementById('cube-toggle').checked) {
-                        document.getElementById('cube-toggle').checked = false;
-                        isCubeMode = false;
-                    }
-                }
+            const rectVariantsContainer = document.getElementById('rect-variants-container');
+            if (rectVariantsContainer) {
+                if (selectedShapes.includes('rectPrism')) { rectVariantsContainer.classList.remove('hidden'); rectVariantsContainer.classList.add('flex'); } 
+                else { rectVariantsContainer.classList.add('hidden'); rectVariantsContainer.classList.remove('flex'); }
             }
         }
 
@@ -1172,15 +1101,10 @@
             const slider = document.getElementById('slice-slider');
             if (!slider || sliceMode === 'none') return;
             
-            if (sliceMode === 'y') {
-                slider.min = -0.5; slider.max = currentHeight + 0.5;
-            } else if (sliceMode === 'z') {
-                slider.min = -currentBaseSize - 0.5; slider.max = currentBaseSize + 0.5;
-            } else if (sliceMode === 'oblique') {
-                slider.min = -currentBaseSize - 0.5; slider.max = currentHeight + currentBaseSize + 0.5;
-            } else if (sliceMode === 'parallel') {
-                slider.min = -currentHeight/2 - 0.5; slider.max = currentHeight/2 + 0.5;
-            }
+            if (sliceMode === 'y') { slider.min = -0.5; slider.max = currentHeight + 0.5; } 
+            else if (sliceMode === 'z') { slider.min = -currentBaseSize*1.5 - 0.5; slider.max = currentBaseSize*1.5 + 0.5; } 
+            else if (sliceMode === 'oblique') { slider.min = -currentBaseSize*1.5 - 0.5; slider.max = currentHeight + currentBaseSize*1.5 + 0.5; } 
+            else if (sliceMode === 'parallel') { slider.min = -currentHeight/2 - 0.5; slider.max = currentHeight/2 + 0.5; }
 
             if (sliceValue > slider.max) { sliceValue = slider.max; slider.value = sliceValue; } 
             else if (sliceValue < slider.min) { sliceValue = slider.min; slider.value = sliceValue; }
@@ -1188,23 +1112,14 @@
 
         function updateInfoPanel() {
             const container = document.getElementById('info-panel-container');
-            
-            const showFacesEl = document.getElementById('show-faces');
-            const showEdgesEl = document.getElementById('show-edges');
-            const showVerticesEl = document.getElementById('show-vertices');
-            const showLabelsEl = document.getElementById('show-labels'); 
-            const showPartNamesEl = document.getElementById('show-part-names'); 
-            const showLengthsEl = document.getElementById('show-lengths'); 
-            
-            const showFacesChecked = showFacesEl ? showFacesEl.checked : true;
-            const showEdgesChecked = showEdgesEl ? showEdgesEl.checked : true;
-            const showVerticesChecked = showVerticesEl ? showVerticesEl.checked : false;
-            const showLabelsChecked = showLabelsEl ? showLabelsEl.checked : false;
-            const showPartNamesChecked = showPartNamesEl ? showPartNamesEl.checked : false;
-            const showLengthsChecked = showLengthsEl ? showLengthsEl.checked : false;
+            const showFacesChecked = document.getElementById('show-faces') ? document.getElementById('show-faces').checked : true;
+            const showEdgesChecked = document.getElementById('show-edges') ? document.getElementById('show-edges').checked : true;
+            const showVerticesChecked = document.getElementById('show-vertices') ? document.getElementById('show-vertices').checked : false;
+            const showLabelsChecked = document.getElementById('show-labels') ? document.getElementById('show-labels').checked : false;
+            const showPartNamesChecked = document.getElementById('show-part-names') ? document.getElementById('show-part-names').checked : false;
+            const showLengthsChecked = document.getElementById('show-lengths') ? document.getElementById('show-lengths').checked : false;
 
             let html = '';
-            
             if (selectedShapes.length === 1) {
                 const data = shapeData[selectedShapes[0]];
                 html = `
@@ -1213,71 +1128,35 @@
                         <div class="stat-badge">面 <span class="stat-value">${data.faces}</span></div>
                         <div class="stat-badge">稜 <span class="stat-value">${data.edges}</span></div>
                         <div class="stat-badge">頂點 <span class="stat-value">${data.vertices}</span></div>
-                    </div>
-                `;
+                    </div>`;
             } else {
                 html = `
                     <h2 class="text-center font-bold text-emerald-800 mb-2 border-b border-emerald-200 pb-1 text-sm">立體比較 (${selectedShapes.length}個)</h2>
                     <div class="overflow-hidden mb-3 rounded-lg border border-emerald-100 shadow-sm">
                         <table class="w-full text-center text-xs text-gray-700 bg-white">
                             <thead class="bg-emerald-50 text-emerald-800">
-                                <tr>
-                                    <th class="p-1.5 border-b border-emerald-100">圖形</th>
-                                    <th class="p-1.5 border-b border-emerald-100">面</th>
-                                    <th class="p-1.5 border-b border-emerald-100">稜</th>
-                                    <th class="p-1.5 border-b border-emerald-100">頂點</th>
-                                </tr>
+                                <tr><th class="p-1.5 border-b border-emerald-100">圖形</th><th class="p-1.5 border-b border-emerald-100">面</th><th class="p-1.5 border-b border-emerald-100">稜</th><th class="p-1.5 border-b border-emerald-100">頂點</th></tr>
                             </thead>
                             <tbody>
-                                ${selectedShapes.map(type => {
-                                    const d = shapeData[type];
-                                    return `
-                                    <tr class="border-b border-emerald-50 last:border-0 hover:bg-emerald-50/50">
-                                        <td class="p-1.5 font-bold text-emerald-900">${d.name}</td>
-                                        <td class="p-1.5 font-bold text-emerald-700">${d.faces}</td>
-                                        <td class="p-1.5 font-bold text-emerald-700">${d.edges}</td>
-                                        <td class="p-1.5 font-bold text-emerald-700">${d.vertices}</td>
-                                    </tr>`;
-                                }).join('')}
+                                ${selectedShapes.map(type => `<tr class="border-b border-emerald-50 last:border-0 hover:bg-emerald-50/50"><td class="p-1.5 font-bold text-emerald-900">${shapeData[type].name}</td><td class="p-1.5 font-bold text-emerald-700">${shapeData[type].faces}</td><td class="p-1.5 font-bold text-emerald-700">${shapeData[type].edges}</td><td class="p-1.5 font-bold text-emerald-700">${shapeData[type].vertices}</td></tr>`).join('')}
                             </tbody>
                         </table>
-                    </div>
-                `;
+                    </div>`;
             }
 
             html += `
                 <div class="flex flex-col gap-2 mt-2 bg-white/80 p-2.5 rounded-lg shadow-sm border border-emerald-100">
                     <div class="flex justify-center gap-4 border-b border-gray-100 pb-2">
-                        <label class="flex items-center space-x-1 cursor-pointer select-none hover:bg-emerald-50 p-1 rounded transition">
-                            <input type="checkbox" id="show-faces" class="feature-checkbox" ${showFacesChecked ? 'checked' : ''} onchange="updateVisibility()">
-                            <span class="text-xs font-bold text-gray-700">面</span>
-                        </label>
-                        <label class="flex items-center space-x-1 cursor-pointer select-none hover:bg-emerald-50 p-1 rounded transition">
-                            <input type="checkbox" id="show-edges" class="feature-checkbox" ${showEdgesChecked ? 'checked' : ''} onchange="updateVisibility()">
-                            <span class="text-xs font-bold text-gray-700">稜</span>
-                        </label>
-                        <label class="flex items-center space-x-1 cursor-pointer select-none hover:bg-emerald-50 p-1 rounded transition">
-                            <input type="checkbox" id="show-vertices" class="feature-checkbox" ${showVerticesChecked ? 'checked' : ''} onchange="updateVisibility()">
-                            <span class="text-xs font-bold text-gray-700">頂點</span>
-                        </label>
+                        <label class="flex items-center space-x-1 cursor-pointer select-none hover:bg-emerald-50 p-1 rounded transition"><input type="checkbox" id="show-faces" class="feature-checkbox" ${showFacesChecked ? 'checked' : ''} onchange="updateVisibility()"><span class="text-xs font-bold text-gray-700">面</span></label>
+                        <label class="flex items-center space-x-1 cursor-pointer select-none hover:bg-emerald-50 p-1 rounded transition"><input type="checkbox" id="show-edges" class="feature-checkbox" ${showEdgesChecked ? 'checked' : ''} onchange="updateVisibility()"><span class="text-xs font-bold text-gray-700">稜</span></label>
+                        <label class="flex items-center space-x-1 cursor-pointer select-none hover:bg-emerald-50 p-1 rounded transition"><input type="checkbox" id="show-vertices" class="feature-checkbox" ${showVerticesChecked ? 'checked' : ''} onchange="updateVisibility()"><span class="text-xs font-bold text-gray-700">頂點</span></label>
                     </div>
                     <div class="flex justify-center gap-2 pt-1 flex-wrap mt-1">
-                        <label class="flex items-center space-x-1 cursor-pointer select-none bg-amber-50 hover:bg-amber-100 p-1.5 rounded-md transition border border-amber-200">
-                            <input type="checkbox" id="show-labels" class="feature-checkbox accent-amber-500" ${showLabelsChecked ? 'checked' : ''} onchange="updateVisibility()">
-                            <span class="text-xs font-bold text-amber-800">標示面數</span>
-                        </label>
-                        <label class="flex items-center space-x-1 cursor-pointer select-none bg-purple-50 hover:bg-purple-100 p-1.5 rounded-md transition border border-purple-200">
-                            <input type="checkbox" id="show-part-names" class="feature-checkbox accent-purple-500" ${showPartNamesChecked ? 'checked' : ''} onchange="updateVisibility()">
-                            <span class="text-xs font-bold text-purple-800">部分名稱</span>
-                        </label>
-                        <label class="flex items-center space-x-1 cursor-pointer select-none bg-rose-50 hover:bg-rose-100 p-1.5 rounded-md transition border border-rose-200">
-                            <input type="checkbox" id="show-lengths" class="feature-checkbox accent-rose-500" ${showLengthsChecked ? 'checked' : ''} onchange="updateVisibility()">
-                            <span class="text-xs font-bold text-rose-800">顯示稜長</span>
-                        </label>
+                        <label class="flex items-center space-x-1 cursor-pointer select-none bg-amber-50 hover:bg-amber-100 p-1.5 rounded-md transition border border-amber-200"><input type="checkbox" id="show-labels" class="feature-checkbox accent-amber-500" ${showLabelsChecked ? 'checked' : ''} onchange="updateVisibility()"><span class="text-xs font-bold text-amber-800">標示面數</span></label>
+                        <label class="flex items-center space-x-1 cursor-pointer select-none bg-purple-50 hover:bg-purple-100 p-1.5 rounded-md transition border border-purple-200"><input type="checkbox" id="show-part-names" class="feature-checkbox accent-purple-500" ${showPartNamesChecked ? 'checked' : ''} onchange="updateVisibility()"><span class="text-xs font-bold text-purple-800">部分名稱</span></label>
+                        <label class="flex items-center space-x-1 cursor-pointer select-none bg-rose-50 hover:bg-rose-100 p-1.5 rounded-md transition border border-rose-200"><input type="checkbox" id="show-lengths" class="feature-checkbox accent-rose-500" ${showLengthsChecked ? 'checked' : ''} onchange="updateVisibility()"><span class="text-xs font-bold text-rose-800">顯示稜長</span></label>
                     </div>
-                </div>
-            `;
-
+                </div>`;
             container.innerHTML = html;
         }
 
@@ -1289,36 +1168,28 @@
             const unfoldTxt = document.getElementById('unfold-text');
             
             document.querySelectorAll('.btn-slice').forEach(btn => {
-                if (btn.getAttribute('onclick').includes(`'${mode}'`)) btn.classList.add('active');
-                else btn.classList.remove('active');
+                if (btn.getAttribute('onclick').includes(`'${mode}'`)) btn.classList.add('active'); else btn.classList.remove('active');
             });
             
             if (mode === 'none') {
-                sliderContainer.classList.add('hidden');
-                updateShapeSelectionUI(); 
+                sliderContainer.classList.add('hidden'); updateShapeSelectionUI(); 
             } else {
                 sliderContainer.classList.remove('hidden');
                 if(isUnfolded) toggleUnfold(); 
-                unfoldBtn.disabled = true;
-                if(unfoldTxt) unfoldTxt.innerText = "截面模式中無法展開";
-                unfoldBtn.style.opacity = '0.5';
+                unfoldBtn.disabled = true; if(unfoldTxt) unfoldTxt.innerText = "截面模式中無法展開"; unfoldBtn.style.opacity = '0.5';
                 
                 if (mode === 'y') { slider.min = -0.5; slider.max = currentHeight + 0.5; slider.value = currentHeight / 2; } 
-                else if (mode === 'z') { slider.min = -currentBaseSize - 0.5; slider.max = currentBaseSize + 0.5; slider.value = 0; } 
-                else if (mode === 'oblique') { slider.min = -currentBaseSize - 0.5; slider.max = currentHeight + currentBaseSize + 0.5; slider.value = currentHeight / 2; }
+                else if (mode === 'z') { slider.min = -currentBaseSize*1.5 - 0.5; slider.max = currentBaseSize*1.5 + 0.5; slider.value = 0; } 
+                else if (mode === 'oblique') { slider.min = -currentBaseSize*1.5 - 0.5; slider.max = currentHeight + currentBaseSize*1.5 + 0.5; slider.value = currentHeight / 2; }
                 else if (mode === 'parallel') { slider.min = -currentHeight/2 - 0.5; slider.max = currentHeight/2 + 0.5; slider.value = 0; }
-                
                 sliceValue = parseFloat(slider.value);
             }
             updateShape();
         }
         
-        document.getElementById('slice-slider').addEventListener('input', function() { 
-            sliceValue = parseFloat(this.value); 
-            updateClipPlanes(); 
-        });
+        document.getElementById('slice-slider').addEventListener('input', function() { sliceValue = parseFloat(this.value); updateClipPlanes(); });
         
-        function toggleUnfold() {
+        window.toggleUnfold = function() {
             isUnfolded = !isUnfolded;
             const btn = document.getElementById('unfold-btn');
             const txt = document.getElementById('unfold-text');
@@ -1329,38 +1200,24 @@
         }
 
         window.updateVisibility = function() {
-            const faceCb = document.getElementById('show-faces');
-            const edgeCb = document.getElementById('show-edges');
-            const vertCb = document.getElementById('show-vertices');
-            const labelCb = document.getElementById('show-labels'); 
-            const partNameCb = document.getElementById('show-part-names'); 
-            const lengthsCb = document.getElementById('show-lengths'); 
-            
-            const showFaces = faceCb ? faceCb.checked : true;
-            const showEdges = edgeCb ? edgeCb.checked : true;
-            const showVertices = vertCb ? vertCb.checked : false;
-            const showLabels = labelCb ? labelCb.checked : false;
-            const showPartNames = partNameCb ? partNameCb.checked : false;
-            const showLengths = lengthsCb ? lengthsCb.checked : false;
+            const showFaces = document.getElementById('show-faces') ? document.getElementById('show-faces').checked : true;
+            const showEdges = document.getElementById('show-edges') ? document.getElementById('show-edges').checked : true;
+            const showVertices = document.getElementById('show-vertices') ? document.getElementById('show-vertices').checked : false;
+            const showLabels = document.getElementById('show-labels') ? document.getElementById('show-labels').checked : false;
+            const showPartNames = document.getElementById('show-part-names') ? document.getElementById('show-part-names').checked : false;
+            const showLengths = document.getElementById('show-lengths') ? document.getElementById('show-lengths').checked : false;
 
             mainGroup.traverse(obj => {
                 if (obj.userData.isFace && obj.material) obj.material.visible = showFaces;
                 if (obj.userData.isEdgeGroup || obj.type === 'LineSegments') obj.visible = showEdges;
                 if (obj.userData.isVertex) {
                     const sType = obj.userData.shapeType;
-                    if(sType==='cylinder'||sType==='sphere') obj.visible = false;
-                    else obj.visible = showVertices;
+                    if(sType==='cylinder'||sType==='sphere') obj.visible = false; else obj.visible = showVertices;
                     if(isUnfolded && !showVertices) obj.visible = false;
                 }
-                if (obj.userData.isLabel) {
-                    obj.visible = showLabels;
-                }
-                if (obj.userData.isPartName) {
-                    obj.visible = showPartNames;
-                }
-                if (obj.userData.isLengthLabel) {
-                    obj.visible = showLengths && showEdges;
-                }
+                if (obj.userData.isLabel) obj.visible = showLabels;
+                if (obj.userData.isPartName) obj.visible = showPartNames;
+                if (obj.userData.isLengthLabel) obj.visible = showLengths && showEdges;
             });
         }
 
@@ -1368,51 +1225,48 @@
         window.toggleTransparency = function() { isTransparent = document.getElementById('xray-toggle').checked; updateShape(); }
         
         window.exportImage = function() {
-            const originalBackground = scene.background;
-            const originalGridVisible = gridHelper ? gridHelper.visible : false;
-            
-            scene.background = new THREE.Color(0xffffff);
-            if (gridHelper) gridHelper.visible = false;
-            
+            const originalBackground = scene.background; const originalGridVisible = gridHelper ? gridHelper.visible : false;
+            scene.background = new THREE.Color(0xffffff); if (gridHelper) gridHelper.visible = false;
             renderer.render(scene, camera);
             const dataURL = renderer.domElement.toDataURL('image/png');
-            
-            const link = document.createElement('a');
-            link.download = '神奇立體圖形.png';
-            link.href = dataURL;
-            link.click();
-            
-            scene.background = originalBackground;
-            if (gridHelper) gridHelper.visible = originalGridVisible;
-            renderer.render(scene, camera);
+            const link = document.createElement('a'); link.download = '神奇立體圖形.png'; link.href = dataURL; link.click();
+            scene.background = originalBackground; if (gridHelper) gridHelper.visible = originalGridVisible; renderer.render(scene, camera);
         };
         
         document.getElementById('height-slider').addEventListener('input', function() { 
             currentHeight = parseFloat(this.value); 
-            document.getElementById('height-val').innerText = currentHeight.toFixed(1);
             
-            if (isCubeMode) {
-                currentBaseSize = currentHeight / Math.sqrt(2);
+            // 防止在長方體模式下意外變成正方體
+            if ((rectPrismVariant === 'square' || rectPrismVariant === 'rect') && Math.abs(currentHeight - (currentBaseSize * 2)) < 0.05) {
+                currentHeight += 0.1; // 輕微偏移
+                this.value = currentHeight;
+            }
+
+            document.getElementById('height-val').innerText = currentHeight.toFixed(1);
+            if (rectPrismVariant === 'cube') {
+                currentBaseSize = currentHeight / 2;
                 document.getElementById('width-slider').value = currentBaseSize;
                 document.getElementById('width-val').innerText = currentBaseSize.toFixed(1);
             }
-            
-            updateSliceRange(); 
-            updateShape(); 
+            updateSliceRange(); updateShape(); 
         });
 
         document.getElementById('width-slider').addEventListener('input', function() { 
             currentBaseSize = parseFloat(this.value); 
+
+            // 防止在長方體模式下意外變成正方體
+            if ((rectPrismVariant === 'square' || rectPrismVariant === 'rect') && Math.abs(currentHeight - (currentBaseSize * 2)) < 0.05) {
+                currentBaseSize -= 0.1; // 輕微偏移
+                this.value = currentBaseSize;
+            }
+
             document.getElementById('width-val').innerText = currentBaseSize.toFixed(1);
-            
-            if (isCubeMode) {
-                currentHeight = currentBaseSize * Math.sqrt(2);
+            if (rectPrismVariant === 'cube') {
+                currentHeight = currentBaseSize * 2;
                 document.getElementById('height-slider').value = currentHeight;
                 document.getElementById('height-val').innerText = currentHeight.toFixed(1);
             }
-            
-            updateSliceRange(); 
-            updateShape(); 
+            updateSliceRange(); updateShape(); 
         });
         
         function onWindowResize() { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
