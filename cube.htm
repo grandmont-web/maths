@@ -4,155 +4,139 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>正方體展開圖探索工具</title>
-    <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 引入 FontAwesome 圖示 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* 網格與基礎動畫樣式 */
-        .grid-cell {
-            transition: all 0.2s ease;
-        }
-        .grid-cell:hover {
-            transform: scale(0.95);
-        }
+        /* 基礎共用與單人模式樣式 */
+        body { overscroll-behavior-y: none; }
+        .page-section { display: none; }
+        .page-section.active { display: flex; }
         
-        /* 3D 場景容器 */
-        .scene {
-            width: 100%;
-            perspective: 800px;
-            display: none; 
+        /* 修正方格變形：強制 1:1 長寬比 */
+        .grid-cell { 
+            aspect-ratio: 1 / 1; 
+            box-sizing: border-box;
+            transition: all 0.1s ease; 
+            display: flex;
             align-items: center;
             justify-content: center;
-            cursor: grab;
+            font-weight: 900;
             user-select: none;
-            touch-action: none;
         }
-        .scene:active {
-            cursor: grabbing;
-        }
-
-        /* 摺疊角度變數 */
-        :root {
-            --fold-angle: 0deg;
-        }
+        .grid-cell:active { transform: scale(0.9); }
         
-        .rotator {
-            width: 60px; 
-            height: 60px;
-            transform-style: preserve-3d;
-            transform-origin: 30px 30px 30px;
-            transform: rotateX(-30deg) rotateY(45deg);
-        }
+        .cell-single-active { background-color: #3b82f6; border-color: #2563eb; color: white; }
+        
+        .active-p1 { background-color: #3b82f6 !important; border-color: #2563eb !important; color: white !important; box-shadow: inset 0 0 8px rgba(0,0,0,0.3); }
+        .active-p2 { background-color: #f43f5e !important; border-color: #e11d48 !important; color: white !important; box-shadow: inset 0 0 8px rgba(0,0,0,0.3); }
+        .active-p3 { background-color: #10b981 !important; border-color: #059669 !important; color: white !important; box-shadow: inset 0 0 8px rgba(0,0,0,0.3); }
+        .active-p4 { background-color: #f59e0b !important; border-color: #d97706 !important; color: white !important; box-shadow: inset 0 0 8px rgba(0,0,0,0.3); }
 
-        .net-root {
-            width: 60px; height: 60px;
-            position: relative;
-            transform-style: preserve-3d;
-        }
-
-        .hinge {
-            width: 60px; height: 60px;
-            position: absolute;
-            transform-style: preserve-3d;
-        }
-
+        .mini-lock { transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        
+        /* 3D 摺疊動畫專用 */
+        .scene { width: 100%; height: 300px; perspective: 1000px; display: none; align-items: center; justify-content: center; cursor: grab; }
+        #panZoomContainer { transform-style: preserve-3d; transition: transform 0.1s ease-out; }
+        :root { --fold-angle: 0deg; }
+        .rotator { transform-style: preserve-3d; transform: rotateX(-25deg) rotateY(45deg); width: 60px; height: 60px; }
+        .hinge { width: 60px; height: 60px; position: absolute; transform-style: preserve-3d; }
         .hinge.RIGHT { left: 60px; top: 0; transform-origin: left center; transform: rotateY(calc(var(--fold-angle) * -1)); }
         .hinge.LEFT { left: -60px; top: 0; transform-origin: right center; transform: rotateY(var(--fold-angle)); }
         .hinge.TOP { left: 0; top: -60px; transform-origin: bottom center; transform: rotateX(calc(var(--fold-angle) * -1)); }
         .hinge.BOTTOM { left: 0; top: 60px; transform-origin: top center; transform: rotateX(var(--fold-angle)); }
+        .hinge.ROOT { left: 0; top: 0; transform-origin: center; }
+        .face { width: 100%; height: 100%; position: absolute; left: 0; top: 0; background: rgba(59, 130, 246, 0.85); border: 2px solid white; box-shadow: inset 0 0 15px rgba(0,0,0,0.2); backface-visibility: visible; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 900; color: white; }
+        .face.invalid-face { background: rgba(225, 29, 72, 0.85); /* 錯誤時面顯示為紅色 */ }
+        
+        @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 80% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+        .animate-pop { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        
+        /* 單人圖鑑解鎖慶祝動畫 */
+        @keyframes successPop {
+            0% { transform: scale(0.3) rotate(-15deg); opacity: 0; box-shadow: 0 0 0 rgba(225,29,72,0); }
+            50% { transform: scale(1.3) rotate(5deg); opacity: 1; box-shadow: 0 0 30px rgba(225,29,72,0.8); }
+            70% { transform: scale(0.9) rotate(-2deg); }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; box-shadow: 0 0 15px rgba(225,29,72,0.6); }
+        }
+        .animate-success-pop { animation: successPop 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; z-index: 10; }
 
-        .face {
-            width: 100%; height: 100%;
-            position: absolute; left: 0; top: 0;
-            background: rgba(59, 130, 246, 0.85);
-            border: 2px solid white;
-            box-shadow: inset 0 0 15px rgba(0,0,0,0.2);
-            backface-visibility: visible; 
-            display: flex; align-items: center; justify-content: center;
-            font-size: 24px;
-            font-weight: bold;
-            color: white;
-            text-shadow: 1px 1px 3px rgba(0,0,0,0.4);
-        }
-
-        .face::after {
-            content: '';
-            position: absolute;
-            inset: 4px;
-            border: 1px dashed rgba(255,255,255,0.4);
-        }
-
-        @keyframes popIn {
-            0% { transform: scale(0.8); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-        .animate-pop {
-            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-        }
-
-        input[type=range]::-webkit-slider-thumb {
-            appearance: none;
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            background: #4f46e5;
-            cursor: pointer;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-
-        /* 解鎖發光動畫 */
-        @keyframes unlockGlow {
-            0% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.7); }
-            70% { box-shadow: 0 0 0 15px rgba(251, 191, 36, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); }
-        }
-        .animate-unlock-glow {
-            animation: unlockGlow 1s infinite;
-        }
+        .toast { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.5); opacity: 0; pointer-events: none; transition: all 0.2s ease-out; z-index: 50; }
+        .toast.show { transform: translate(-50%, -50%) scale(1); opacity: 1; }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen font-sans text-slate-800">
 
-    <!-- 11種展開圖收集圖鑑 Modal (鎖頭版) -->
-    <div id="collectionModal" class="fixed inset-0 z-50 bg-slate-900/80 hidden flex-col items-center justify-center backdrop-blur-sm transition-opacity">
-        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-2xl max-w-4xl w-full mx-4 relative flex flex-col items-center">
+    <!-- ==================== 主選單 ==================== -->
+    <div id="mainMenu" class="page-section active flex-col items-center justify-center p-6 min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div class="bg-white p-10 rounded-3xl shadow-2xl max-w-2xl w-full text-center border border-slate-100">
+            <i class="fa-solid fa-cube text-6xl text-blue-600 mb-6 block animate-bounce"></i>
+            <h1 class="text-4xl md:text-5xl font-extrabold text-slate-800 mb-4">正方體展開圖探索工具</h1>
+            <p class="text-xl text-slate-500 mb-10">請選擇學習模式</p>
             
-            <div class="absolute top-4 right-6 text-slate-400 font-bold bg-slate-100 px-4 py-1 rounded-full">
-                收集進度: <span id="progressText" class="text-indigo-600">0</span> / 11
-            </div>
+            <div class="flex flex-col md:flex-row gap-6 justify-center">
+                <button onclick="switchPage('explorationMode')" class="flex-1 bg-white border-2 border-blue-200 hover:border-blue-500 hover:bg-blue-50 group rounded-2xl p-6 transition-all shadow-sm hover:shadow-md flex flex-col items-center text-center">
+                    <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-magnifying-glass text-2xl text-blue-600"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-slate-700 mb-2">單人探索模式</h2>
+                    <p class="text-slate-500 text-sm">慢慢嘗試，收集 11 種展開圖，並觀看 3D 摺疊動畫。</p>
+                </button>
 
-            <h2 id="modalTitle" class="text-2xl md:text-3xl font-extrabold text-center mt-4 mb-2 text-slate-800 tracking-wide">
-                <i class="fa-solid fa-key text-amber-500 mr-2"></i> 發現新的展開圖！
-            </h2>
-            <p class="text-slate-500 mb-8 text-center text-lg">正方體共有 11 種不同的展開圖，恭喜您解鎖了其中一種！</p>
-            
-            <!-- 鎖頭網格 -->
-            <div class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-6 justify-items-center w-full px-4" id="locksGrid">
-                <!-- JavaScript 動態生成 11 個鎖頭槽位 -->
-            </div>
-
-            <div class="mt-10 text-center opacity-0 transition-opacity duration-500 min-h-[50px]" id="modalActionContainer">
-                <button onclick="closeModalAndShow3D()" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-8 py-3 rounded-full font-bold shadow-lg transform hover:scale-105 transition-all text-lg flex items-center mx-auto">
-                    觀看立體摺疊 <i class="fa-solid fa-cube ml-3"></i>
+                <button onclick="openMultiplayerSetup()" class="flex-1 bg-white border-2 border-rose-200 hover:border-rose-500 hover:bg-rose-50 group rounded-2xl p-6 transition-all shadow-sm hover:shadow-md flex flex-col items-center text-center">
+                    <div class="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-users text-2xl text-rose-600"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-slate-700 mb-2">多人對戰模式</h2>
+                    <p class="text-slate-500 text-sm">支援 2~4 人！適合電子白板，同螢幕各自挑戰。</p>
                 </button>
             </div>
         </div>
     </div>
 
-    <div class="max-w-6xl mx-auto p-4 md:p-6 pt-10">
-        <!-- 標題區 -->
-        <header class="text-center mb-8">
-            <h1 class="text-3xl md:text-4xl font-extrabold text-blue-600 mb-3">
-                <i class="fa-solid fa-cube mr-2"></i>正方體展開圖探索工具
-            </h1>
-            <p class="text-lg text-slate-600">
-                在下方網格選出 <strong class="text-blue-600">6 個</strong> 正方形，找出所有 11 種能摺成正方體的展開圖並解鎖圖鑑！
-            </p>
-        </header>
+    <!-- ==================== 對戰設定 Modal ==================== -->
+    <div id="setupModal" class="fixed inset-0 z-50 bg-slate-900/80 hidden flex-col items-center justify-center backdrop-blur-sm">
+        <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-md w-full animate-pop relative">
+            <button onclick="closeMultiplayerSetup()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-2xl"><i class="fa-solid fa-xmark"></i></button>
+            <h2 class="text-3xl font-extrabold text-slate-800 mb-6 text-center"><i class="fa-solid fa-gear text-rose-500 mr-2"></i>對戰設定</h2>
+            
+            <div class="mb-6">
+                <label class="block text-lg font-bold text-slate-700 mb-3">選擇遊玩人數</label>
+                <div class="grid grid-cols-3 gap-3">
+                    <button onclick="selectPlayerCount(2)" id="btn-p2" class="p-btn border-2 border-rose-500 bg-rose-50 text-rose-700 py-3 rounded-xl font-bold transition-all">2 人</button>
+                    <button onclick="selectPlayerCount(3)" id="btn-p3" class="p-btn border-2 border-slate-200 text-slate-600 py-3 rounded-xl font-bold transition-all">3 人</button>
+                    <button onclick="selectPlayerCount(4)" id="btn-p4" class="p-btn border-2 border-slate-200 text-slate-600 py-3 rounded-xl font-bold transition-all">4 人</button>
+                </div>
+            </div>
 
-        <div class="flex flex-col lg:flex-row gap-6 items-stretch">
-            <!-- 左側：網格操作區 (5/12 比例) -->
+            <div class="mb-8">
+                <label class="block text-lg font-bold text-slate-700 mb-3">選擇限時</label>
+                <select id="timeSelect" class="w-full border-2 border-slate-300 rounded-xl p-3 text-lg font-bold text-slate-700 focus:outline-none focus:border-rose-500 cursor-pointer">
+                    <option value="30">30 秒</option>
+                    <option value="60">1 分鐘</option>
+                    <option value="120">2 分鐘</option>
+                    <option value="180" selected>3 分鐘</option>
+                    <option value="300">5 分鐘</option>
+                </select>
+            </div>
+
+            <button onclick="startVersusMode()" class="w-full bg-rose-600 hover:bg-rose-700 text-white py-4 rounded-xl font-bold text-xl transition-all shadow-lg active:scale-95">
+                <i class="fa-solid fa-play mr-2"></i> 開始對戰！
+            </button>
+        </div>
+    </div>
+
+
+    <!-- ==================== 單人探索模式 ==================== -->
+    <div id="explorationMode" class="page-section flex-col min-h-screen pb-10">
+        <div class="bg-white shadow-sm px-6 py-4 flex justify-between items-center mb-6 sticky top-0 z-40">
+            <h1 class="text-2xl font-bold text-blue-600"><i class="fa-solid fa-cube mr-2"></i>單人探索</h1>
+            <button onclick="switchPage('mainMenu')" class="text-slate-500 hover:text-slate-800 font-bold px-4 py-2 rounded-lg hover:bg-slate-100 transition">
+                <i class="fa-solid fa-house mr-2"></i>回主畫面
+            </button>
+        </div>
+
+        <div class="max-w-6xl mx-auto p-4 flex flex-col lg:flex-row gap-6 w-full">
+            <!-- 左側：網格 -->
             <div class="w-full lg:w-5/12 bg-white p-6 rounded-2xl shadow-lg border border-slate-100 flex flex-col">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-xl font-bold text-slate-700">繪製展開圖</h2>
@@ -161,709 +145,751 @@
                     </div>
                 </div>
 
-                <!-- 網格容器 (6x6) -->
-                <div id="gridContainer" class="grid grid-cols-6 gap-1 mb-6 aspect-square w-full max-w-[400px] mx-auto">
-                    <!-- JavaScript 將在這裡生成網格 -->
-                </div>
+                <div id="gridContainer" class="grid grid-cols-6 gap-1.5 mb-6 w-full max-w-[400px] mx-auto"></div>
 
-                <!-- 操作按鈕 -->
-                <div class="flex flex-col gap-3 justify-center mt-auto">
-                    <button onclick="checkNet()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-lg font-bold transition-colors shadow-sm flex items-center justify-center text-lg">
+                <div class="flex flex-col gap-3 mt-auto">
+                    <button onclick="checkNetSingle()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl font-bold text-lg shadow-sm">
                         <i class="fa-solid fa-wand-magic-sparkles mr-2"></i> 檢查能否摺疊
                     </button>
-                    <button onclick="clearGrid()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-3 rounded-lg font-bold transition-colors shadow-sm flex items-center justify-center">
+                    <button onclick="clearGridSingle()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-3 rounded-xl font-bold">
                         <i class="fa-solid fa-eraser mr-2"></i> 清除重畫
+                    </button>
+                    <button onclick="openCollectionModal()" class="bg-amber-100 hover:bg-amber-200 text-amber-800 px-4 py-3 rounded-xl font-bold">
+                        <i class="fa-solid fa-book mr-2"></i> 查看圖鑑 (<span id="progressText">0</span>/11)
                     </button>
                 </div>
             </div>
 
-            <!-- 右側：結果與 3D 顯示區 (7/12 比例) -->
-            <div class="w-full lg:w-7/12 bg-white p-6 rounded-2xl shadow-lg border border-slate-100 min-h-[650px] flex flex-col relative">
-                
-                <h2 class="text-xl font-bold text-slate-700 w-full text-center mb-4 flex-shrink-0">檢驗結果與 3D 視角</h2>
+            <!-- 右側：3D 顯示區 -->
+            <div class="w-full lg:w-7/12 bg-white p-6 rounded-2xl shadow-lg border border-slate-100 min-h-[500px] flex flex-col relative">
+                <h2 class="text-xl font-bold text-slate-700 mb-4 text-center">檢驗結果與 3D 視角</h2>
+                <!-- 操作提示 -->
+                <div class="absolute top-4 left-4 right-4 flex justify-between pointer-events-none opacity-50 text-sm font-bold text-slate-400">
+                    <span>左鍵：旋轉視角</span>
+                    <span>右鍵：平移畫布</span>
+                </div>
 
-                <!-- 預設提示訊息 (尚未檢查時顯示) -->
                 <div id="initialMessage" class="flex-1 flex flex-col items-center justify-center text-slate-400">
                     <i class="fa-solid fa-box-open text-6xl mb-4 opacity-50"></i>
                     <p>畫好展開圖後，點擊「檢查」按鈕來看看結果吧！</p>
                 </div>
 
-                <!-- 成功/失敗 訊息顯示區 -->
-                <div id="resultBox" class="hidden w-full text-center p-4 rounded-xl mb-4 animate-pop flex-shrink-0 z-10 border-2">
+                <div id="resultBox" class="hidden w-full text-center p-4 rounded-xl mb-4 z-10 border-2">
                     <i id="resultIcon" class="text-4xl mb-2"></i>
                     <h3 id="resultTitle" class="text-2xl font-bold mb-1"></h3>
                     <p id="resultDesc" class="text-slate-600 mb-3"></p>
                     
-                    <!-- 摺疊操作與互動提示區 -->
                     <div id="actionButtons" class="mt-2 flex flex-col items-center gap-3 hidden w-full">
-                        <!-- 操作提示列 -->
-                        <div class="flex flex-wrap justify-center gap-3 text-sm text-slate-600 bg-white/60 border border-slate-200 px-4 py-2 rounded-lg shadow-sm w-full font-medium">
-                            <span class="whitespace-nowrap"><i class="fa-solid fa-hand-pointer text-indigo-500"></i> 滑鼠拖曳: 轉動視角 (攤開或摺疊皆可)</span>
-                            <span class="whitespace-nowrap"><i class="fa-solid fa-magnifying-glass text-indigo-500"></i> 滾輪: 縮放</span>
-                        </div>
-                        
-                        <!-- 拉桿與按鈕 -->
                         <div class="flex items-center justify-center gap-4 w-full">
-                            <button id="toggleFoldBtn" onclick="toggleFold()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg font-bold transition-colors shadow-md flex items-center min-w-[120px] justify-center">
-                                <i class="fa-solid fa-box mr-2"></i> 摺疊起來
+                            <button onclick="toggleFold()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg font-bold shadow-md">
+                                <i class="fa-solid fa-box mr-2"></i> 摺疊/展開
                             </button>
-                            <div class="flex items-center gap-3 flex-1 max-w-[250px] bg-slate-50 p-2 rounded-lg border border-slate-200">
+                            <div class="flex items-center gap-3 bg-slate-50 p-2 rounded-lg border w-48">
                                 <span class="text-sm font-bold text-slate-500">0&deg;</span>
-                                <input type="range" id="foldSlider" min="0" max="90" value="0" class="w-full h-3 bg-indigo-200 rounded-lg appearance-none cursor-pointer">
+                                <input type="range" id="foldSlider" min="0" max="90" value="0" class="w-full">
                                 <span class="text-sm font-bold text-slate-500">90&deg;</span>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- 3D 正方體動畫容器 -->
-                <div class="scene flex-1 relative rounded-xl bg-slate-50/50" id="cubeScene">
-                    <!-- 平移縮放容器 -->
-                    <div id="panZoomContainer" style="transform: translate(0px, 0px) scale(1);">
-                        <!-- JavaScript 將動態生成真實摺疊結構 -->
+                <div class="scene flex-1 relative rounded-xl bg-slate-50 border border-slate-200 overflow-hidden" id="cubeScene">
+                    <div id="panZoomContainer">
+                        <div class="rotator" id="cubeRotator"></div>
                     </div>
                 </div>
-
             </div>
         </div>
     </div>
 
+    <!-- 單人收集圖鑑 Modal -->
+    <div id="collectionModal" class="fixed inset-0 z-50 bg-slate-900/80 hidden flex-col items-center justify-center backdrop-blur-sm">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-4xl w-full mx-4 relative animate-pop">
+            <button onclick="document.getElementById('collectionModal').classList.replace('flex', 'hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-2xl"><i class="fa-solid fa-xmark"></i></button>
+            <h2 class="text-3xl font-extrabold text-center mb-6 text-slate-800"><i class="fa-solid fa-book-open text-amber-500 mr-2"></i> 收集圖鑑</h2>
+            <div class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 justify-items-center w-full min-h-[160px]" id="locksGrid"></div>
+            
+            <button id="closeModalBtn" onclick="document.getElementById('collectionModal').classList.replace('flex', 'hidden')" class="mt-8 bg-slate-800 hover:bg-slate-700 transition text-white px-8 py-3 rounded-full font-bold w-full mx-auto block text-lg shadow-lg">
+                繼續探索
+            </button>
+        </div>
+    </div>
+
+
+    <!-- ==================== 對戰模式 ==================== -->
+    <div id="versusMode" class="page-section flex-col h-screen max-h-screen bg-slate-900 text-white overflow-hidden">
+        <!-- 頂部資訊列 -->
+        <div class="bg-slate-800 border-b border-slate-700 px-4 py-2 flex justify-between items-center shadow-lg z-20 shrink-0">
+            <button onclick="forceEndVersus()" class="text-slate-400 hover:text-white font-bold px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition text-sm">
+                <i class="fa-solid fa-arrow-left mr-2"></i>結束
+            </button>
+            <div class="flex flex-col items-center">
+                <div id="vsTimerDisplay" class="text-3xl md:text-4xl font-black font-mono tracking-wider text-amber-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.5)]">03:00</div>
+            </div>
+            <div class="w-[80px]"></div>
+        </div>
+
+        <!-- 遊戲主畫面 -->
+        <div id="versusPanels" class="flex-1 flex flex-row w-full p-1 md:p-2 gap-1 md:gap-2 bg-slate-950 overflow-hidden">
+            
+            <!-- P1 Panel -->
+            <div id="panel-p1" class="hidden flex-1 flex-col bg-slate-800 rounded-xl border-t-[8px] border-blue-500 overflow-hidden relative shadow-lg">
+                <!-- 上方區塊：分數 + 圖鑑 (置頂不壓縮) -->
+                <div class="flex flex-col shrink-0 border-b border-slate-700 bg-slate-900/40 pb-2">
+                    <div class="bg-blue-900/20 w-full flex flex-row justify-between items-center px-3 py-2">
+                        <div class="flex items-center"><i class="fa-solid fa-user-astronaut text-xl md:text-2xl text-blue-400 mr-2 drop-shadow-md"></i><h2 class="text-xs md:text-sm font-bold text-blue-300">玩家 1</h2></div>
+                        <div class="text-2xl md:text-3xl font-black text-blue-400 leading-none"><span id="score-p1">0</span><span class="text-xs text-blue-500/50">/11</span></div>
+                    </div>
+                    <!-- 解鎖的圖鑑，緊湊排列 -->
+                    <div class="px-2 pt-2 flex flex-wrap justify-center content-start gap-1 md:gap-1.5" id="locks-p1"></div>
+                </div>
+
+                <!-- 中間區塊：置中放大方格 (flex-1 讓它佔滿剩餘空間並置中) -->
+                <div class="flex-1 flex flex-col items-center justify-center p-2 relative">
+                    <div class="text-slate-400 font-bold mb-2 text-xs md:text-sm">已選: <span id="count-p1" class="text-blue-300">0</span>/6</div>
+                    <!-- 放大的 Grid，並強制保持正方形比例 -->
+                    <div id="grid-p1" class="grid grid-cols-6 gap-[2px] w-[95%] max-w-[280px] aspect-square mx-auto mb-4"></div>
+                    <!-- 放大的按鈕區 -->
+                    <div class="flex gap-2 w-[95%] max-w-[280px]">
+                        <button onclick="clearGridVersus(1)" class="flex-1 bg-slate-700 hover:bg-slate-600 py-3 rounded-lg text-sm font-bold text-slate-300 transition-colors shadow-sm"><i class="fa-solid fa-eraser"></i></button>
+                        <button onclick="checkNetVersus(1)" class="flex-[2] bg-blue-600 hover:bg-blue-500 py-3 rounded-lg text-sm md:text-base font-bold text-white shadow-[0_0_8px_rgba(37,99,235,0.4)] transition-colors"><i class="fa-solid fa-check"></i> 送出</button>
+                    </div>
+                </div>
+                <!-- 提示訊息 -->
+                <div id="toast-p1" class="toast bg-slate-800 border-2 text-white px-4 py-3 rounded-xl shadow-2xl flex flex-col items-center"><i id="toastIcon-p1" class="text-2xl mb-1"></i><h3 id="toastTitle-p1" class="text-sm md:text-lg font-black whitespace-nowrap"></h3></div>
+            </div>
+
+            <!-- P2 Panel -->
+            <div id="panel-p2" class="hidden flex-1 flex-col bg-slate-800 rounded-xl border-t-[8px] border-rose-500 overflow-hidden relative shadow-lg">
+                <div class="flex flex-col shrink-0 border-b border-slate-700 bg-slate-900/40 pb-2">
+                    <div class="bg-rose-900/20 w-full flex flex-row justify-between items-center px-3 py-2">
+                        <div class="flex items-center"><i class="fa-solid fa-user-ninja text-xl md:text-2xl text-rose-400 mr-2 drop-shadow-md"></i><h2 class="text-xs md:text-sm font-bold text-rose-300">玩家 2</h2></div>
+                        <div class="text-2xl md:text-3xl font-black text-rose-400 leading-none"><span id="score-p2">0</span><span class="text-xs text-rose-500/50">/11</span></div>
+                    </div>
+                    <div class="px-2 pt-2 flex flex-wrap justify-center content-start gap-1 md:gap-1.5" id="locks-p2"></div>
+                </div>
+
+                <div class="flex-1 flex flex-col items-center justify-center p-2 relative">
+                    <div class="text-slate-400 font-bold mb-2 text-xs md:text-sm">已選: <span id="count-p2" class="text-rose-300">0</span>/6</div>
+                    <div id="grid-p2" class="grid grid-cols-6 gap-[2px] w-[95%] max-w-[280px] aspect-square mx-auto mb-4"></div>
+                    <div class="flex gap-2 w-[95%] max-w-[280px]">
+                        <button onclick="clearGridVersus(2)" class="flex-1 bg-slate-700 hover:bg-slate-600 py-3 rounded-lg text-sm font-bold text-slate-300 transition-colors shadow-sm"><i class="fa-solid fa-eraser"></i></button>
+                        <button onclick="checkNetVersus(2)" class="flex-[2] bg-rose-600 hover:bg-rose-500 py-3 rounded-lg text-sm md:text-base font-bold text-white shadow-[0_0_8px_rgba(225,29,72,0.4)] transition-colors"><i class="fa-solid fa-check"></i> 送出</button>
+                    </div>
+                </div>
+                <div id="toast-p2" class="toast bg-slate-800 border-2 text-white px-4 py-3 rounded-xl shadow-2xl flex flex-col items-center"><i id="toastIcon-p2" class="text-2xl mb-1"></i><h3 id="toastTitle-p2" class="text-sm md:text-lg font-black whitespace-nowrap"></h3></div>
+            </div>
+
+            <!-- P3 Panel -->
+            <div id="panel-p3" class="hidden flex-1 flex-col bg-slate-800 rounded-xl border-t-[8px] border-emerald-500 overflow-hidden relative shadow-lg">
+                <div class="flex flex-col shrink-0 border-b border-slate-700 bg-slate-900/40 pb-2">
+                    <div class="bg-emerald-900/20 w-full flex flex-row justify-between items-center px-3 py-2">
+                        <div class="flex items-center"><i class="fa-solid fa-user-secret text-xl md:text-2xl text-emerald-400 mr-2 drop-shadow-md"></i><h2 class="text-xs md:text-sm font-bold text-emerald-300">玩家 3</h2></div>
+                        <div class="text-2xl md:text-3xl font-black text-emerald-400 leading-none"><span id="score-p3">0</span><span class="text-xs text-emerald-500/50">/11</span></div>
+                    </div>
+                    <div class="px-2 pt-2 flex flex-wrap justify-center content-start gap-1 md:gap-1.5" id="locks-p3"></div>
+                </div>
+
+                <div class="flex-1 flex flex-col items-center justify-center p-2 relative">
+                    <div class="text-slate-400 font-bold mb-2 text-xs md:text-sm">已選: <span id="count-p3" class="text-emerald-300">0</span>/6</div>
+                    <div id="grid-p3" class="grid grid-cols-6 gap-[2px] w-[95%] max-w-[280px] aspect-square mx-auto mb-4"></div>
+                    <div class="flex gap-2 w-[95%] max-w-[280px]">
+                        <button onclick="clearGridVersus(3)" class="flex-1 bg-slate-700 hover:bg-slate-600 py-3 rounded-lg text-sm font-bold text-slate-300 transition-colors shadow-sm"><i class="fa-solid fa-eraser"></i></button>
+                        <button onclick="checkNetVersus(3)" class="flex-[2] bg-emerald-600 hover:bg-emerald-500 py-3 rounded-lg text-sm md:text-base font-bold text-white shadow-[0_0_8px_rgba(16,185,129,0.4)] transition-colors"><i class="fa-solid fa-check"></i> 送出</button>
+                    </div>
+                </div>
+                <div id="toast-p3" class="toast bg-slate-800 border-2 text-white px-4 py-3 rounded-xl shadow-2xl flex flex-col items-center"><i id="toastIcon-p3" class="text-2xl mb-1"></i><h3 id="toastTitle-p3" class="text-sm md:text-lg font-black whitespace-nowrap"></h3></div>
+            </div>
+
+            <!-- P4 Panel -->
+            <div id="panel-p4" class="hidden flex-1 flex-col bg-slate-800 rounded-xl border-t-[8px] border-amber-500 overflow-hidden relative shadow-lg">
+                <div class="flex flex-col shrink-0 border-b border-slate-700 bg-slate-900/40 pb-2">
+                    <div class="bg-amber-900/20 w-full flex flex-row justify-between items-center px-3 py-2">
+                        <div class="flex items-center"><i class="fa-solid fa-user-tie text-xl md:text-2xl text-amber-400 mr-2 drop-shadow-md"></i><h2 class="text-xs md:text-sm font-bold text-amber-300">玩家 4</h2></div>
+                        <div class="text-2xl md:text-3xl font-black text-amber-400 leading-none"><span id="score-p4">0</span><span class="text-xs text-amber-500/50">/11</span></div>
+                    </div>
+                    <div class="px-2 pt-2 flex flex-wrap justify-center content-start gap-1 md:gap-1.5" id="locks-p4"></div>
+                </div>
+
+                <div class="flex-1 flex flex-col items-center justify-center p-2 relative">
+                    <div class="text-slate-400 font-bold mb-2 text-xs md:text-sm">已選: <span id="count-p4" class="text-amber-300">0</span>/6</div>
+                    <div id="grid-p4" class="grid grid-cols-6 gap-[2px] w-[95%] max-w-[280px] aspect-square mx-auto mb-4"></div>
+                    <div class="flex gap-2 w-[95%] max-w-[280px]">
+                        <button onclick="clearGridVersus(4)" class="flex-1 bg-slate-700 hover:bg-slate-600 py-3 rounded-lg text-sm font-bold text-slate-300 transition-colors shadow-sm"><i class="fa-solid fa-eraser"></i></button>
+                        <button onclick="checkNetVersus(4)" class="flex-[2] bg-amber-600 hover:bg-amber-500 py-3 rounded-lg text-sm md:text-base font-bold text-white shadow-[0_0_8px_rgba(245,158,11,0.4)] transition-colors"><i class="fa-solid fa-check"></i> 送出</button>
+                    </div>
+                </div>
+                <div id="toast-p4" class="toast bg-slate-800 border-2 text-white px-4 py-3 rounded-xl shadow-2xl flex flex-col items-center"><i id="toastIcon-p4" class="text-2xl mb-1"></i><h3 id="toastTitle-p4" class="text-sm md:text-lg font-black whitespace-nowrap"></h3></div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 對戰結束 Modal -->
+    <div id="vsGameOverModal" class="fixed inset-0 z-[60] bg-slate-900/90 hidden flex-col items-center justify-center backdrop-blur-md">
+        <div class="bg-white p-10 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] max-w-2xl w-full text-center mx-4">
+            <i class="fa-solid fa-trophy text-7xl text-amber-500 mb-6 drop-shadow-md"></i>
+            <h2 class="text-5xl font-black text-slate-800 mb-2">時間到！</h2>
+            <h3 id="vsWinnerTitle" class="text-4xl font-bold mb-8 text-rose-600"></h3>
+            
+            <div id="vsScoreBoard" class="flex flex-wrap justify-center gap-4 mb-10">
+                <!-- 動態注入分數 -->
+            </div>
+
+            <button onclick="document.getElementById('vsGameOverModal').classList.replace('flex', 'hidden'); switchPage('mainMenu');" class="bg-slate-800 hover:bg-slate-700 text-white px-10 py-4 rounded-full font-bold text-xl transition-colors">
+                回主選單
+            </button>
+        </div>
+    </div>
+
+    <!-- ==================== JavaScript ==================== -->
     <script>
+        // ================= 核心邏輯與判定 =================
         const GRID_SIZE = 6;
-        let selectedCells = new Set();
-        const gridContainer = document.getElementById('gridContainer');
-        const countDisplay = document.getElementById('countDisplay');
-        const resultBox = document.getElementById('resultBox');
-        const resultIcon = document.getElementById('resultIcon');
-        const resultTitle = document.getElementById('resultTitle');
-        const resultDesc = document.getElementById('resultDesc');
-        const initialMessage = document.getElementById('initialMessage');
-        const cubeScene = document.getElementById('cubeScene');
-        
-        let isCurrentlyFolded = false;
-        let foldTimeout = null;
-        let foldAnimId = null;
-
-        // 手動轉動與平移縮放變數
-        let isDragging = false;
-        let isPanning = false;
-        let prevMousePos = { x: 0, y: 0 };
-        let rotX = -30;
-        let rotY = 45;
-        let panX = 0;
-        let panY = 0;
-        let zoom = 1.2; 
-        let initialPinchDist = null;
-
-        // 定義 11 種標準正方體展開圖
         const baseNetsCoords = [
-            [[1,0], [0,1],[1,1],[2,1],[3,1], [1,2]], 
-            [[0,0], [0,1],[1,1],[2,1],[3,1], [0,2]], 
-            [[1,0], [0,1],[1,1],[2,1],[3,1], [0,2]], 
-            [[2,0], [0,1],[1,1],[2,1],[3,1], [0,2]], 
-            [[3,0], [0,1],[1,1],[2,1],[3,1], [0,2]], 
-            [[2,0], [0,1],[1,1],[2,1],[3,1], [1,2]], 
-            [[0,0],[1,0], [1,1],[2,1],[3,1], [3,2]], 
-            [[0,0],[1,0], [1,1],[2,1],[3,1], [2,2]], 
-            [[0,0],[1,0], [1,1],[2,1],[3,1], [1,2]], 
-            [[0,0],[1,0], [1,1],[2,1], [2,2],[3,2]], 
+            [[1,0], [0,1],[1,1],[2,1],[3,1], [1,2]], [[0,0], [0,1],[1,1],[2,1],[3,1], [0,2]], 
+            [[1,0], [0,1],[1,1],[2,1],[3,1], [0,2]], [[2,0], [0,1],[1,1],[2,1],[3,1], [0,2]], 
+            [[3,0], [0,1],[1,1],[2,1],[3,1], [0,2]], [[2,0], [0,1],[1,1],[2,1],[3,1], [1,2]], 
+            [[0,0],[1,0], [1,1],[2,1],[3,1], [3,2]], [[0,0],[1,0], [1,1],[2,1],[3,1], [2,2]], 
+            [[0,0],[1,0], [1,1],[2,1],[3,1], [1,2]], [[0,0],[1,0], [1,1],[2,1], [2,2],[3,2]], 
             [[0,0],[1,0],[2,0], [2,1],[3,1],[4,1]]   
         ];
 
-        let unlockedShapes = new Array(11).fill(false);
-
         function getCanonicalStr(pts) {
-            let minX = Math.min(...pts.map(p => p.x));
-            let minY = Math.min(...pts.map(p => p.y));
+            let minX = Math.min(...pts.map(p => p.x)), minY = Math.min(...pts.map(p => p.y));
             let shifted = pts.map(p => ({ x: p.x - minX, y: p.y - minY }));
             shifted.sort((a,b) => a.y === b.y ? a.x - b.x : a.y - b.y);
             return shifted.map(p => `${p.x},${p.y}`).join(';');
         }
-
         const baseNetsCanonical = baseNetsCoords.map(net => getCanonicalStr(net.map(p => ({x:p[0], y:p[1]}))));
 
         function applyTransform(x, y, rotDeg, flipX) {
-            let nx = x, ny = y;
-            let r = ((rotDeg % 360) + 360) % 360;
-            if (r === 90) { nx = -y; ny = x; }
-            else if (r === 180) { nx = -x; ny = -y; }
-            else if (r === 270) { nx = y; ny = -x; }
+            let nx = x, ny = y, r = ((rotDeg % 360) + 360) % 360;
+            if (r === 90) { nx = -y; ny = x; } else if (r === 180) { nx = -x; ny = -y; } else if (r === 270) { nx = y; ny = -x; }
             if (flipX) nx = -nx;
             return {x: nx, y: ny};
         }
 
-        function findMatchingNet(userCells) {
-            for (let flip of [false, true]) {
-                for (let rot of [0, 90, 180, 270]) {
-                    let transformed = userCells.map(p => applyTransform(p.x, p.y, rot, flip));
-                    let canon = getCanonicalStr(transformed);
-                    let idx = baseNetsCanonical.indexOf(canon);
-                    if (idx !== -1) {
-                        return { targetIndex: idx, rotation: rot, flipX: flip };
+        function evaluateNet(cellsSet) {
+            if (cellsSet.size !== 6) return { valid: false, reason: '必須選擇剛好 6 個方格！' };
+            
+            const cells = Array.from(cellsSet).map((k, i) => { 
+                const [x, y] = k.split(','); 
+                return { x:Number(x), y:Number(y), key:k, number: i+1, id: i }; 
+            });
+
+            let visited = new Set([cells[0].key]), queue = [cells[0]], count = 0;
+            let cellMap = new Map(); cells.forEach(c => cellMap.set(c.key, c));
+            while(queue.length > 0) {
+                let curr = queue.shift(); count++;
+                [{dx:0,dy:-1},{dx:0,dy:1},{dx:-1,dy:0},{dx:1,dy:0}].forEach(d => {
+                    let nk = `${curr.x+d.dx},${curr.y+d.dy}`;
+                    if(cellMap.has(nk) && !visited.has(nk)) { visited.add(nk); queue.push(cellMap.get(nk)); }
+                });
+            }
+            if(count !== 6) return { valid: false, reason: '方格必須邊對邊連接。' };
+
+            let isValidNet = true, tree = [];
+            let foldQueue = [{ cell: cells[0], face: 0, up: 2, right: 4, parentId: -1, dirFromParent: 'ROOT' }];
+            let treeVisited = new Set([cells[0].key]);
+            let seenFaces = new Set([0]);
+            
+            const OPPOSITE = {0:1, 1:0, 2:3, 3:2, 4:5, 5:4};
+            function getNextFace(face, up, right, dir) {
+                if (dir === 'TOP') return { face: up, up: OPPOSITE[face], right: right };
+                if (dir === 'BOTTOM') return { face: OPPOSITE[up], up: face, right: right };
+                if (dir === 'RIGHT') return { face: right, up: up, right: OPPOSITE[face] };
+                if (dir === 'LEFT') return { face: OPPOSITE[right], up: up, right: face };
+            }
+
+            while(foldQueue.length > 0) {
+                let curr = foldQueue.shift();
+                tree.push(curr);
+                const moves = [{dx:0,dy:-1,dir:'TOP'},{dx:0,dy:1,dir:'BOTTOM'},{dx:-1,dy:0,dir:'LEFT'},{dx:1,dy:0,dir:'RIGHT'}];
+                for(let m of moves) {
+                    let nk = `${curr.cell.x+m.dx},${curr.cell.y+m.dy}`;
+                    if(cellMap.has(nk) && !treeVisited.has(nk)) {
+                        treeVisited.add(nk);
+                        let ns = getNextFace(curr.face, curr.up, curr.right, m.dir);
+                        if(seenFaces.has(ns.face)) isValidNet = false; 
+                        seenFaces.add(ns.face);
+                        foldQueue.push({ 
+                            cell: cellMap.get(nk), 
+                            face: ns.face, up: ns.up, right: ns.right, 
+                            parentId: curr.cell.id, 
+                            dirFromParent: m.dir 
+                        });
                     }
                 }
             }
-            return null;
+
+            let resObj = { valid: false, reason: '', tree: tree, cells: cells };
+            if(!isValidNet) {
+                resObj.reason = '摺疊時面會重疊！';
+                return resObj;
+            }
+
+            for(let flip of [false,true]){
+                for(let rot of [0,90,180,270]){
+                    let trans = cells.map(p => applyTransform(p.x, p.y, rot, flip));
+                    let canon = getCanonicalStr(trans);
+                    let idx = baseNetsCanonical.indexOf(canon);
+                    if(idx !== -1) {
+                        resObj.valid = true;
+                        resObj.matchIndex = idx;
+                        return resObj;
+                    }
+                }
+            }
+            resObj.reason = '未知的展開圖形！';
+            return resObj;
         }
 
-        function initGrid() {
-            gridContainer.innerHTML = '';
+        function generateExactNetHTML(cells, p) {
+            let minX = Math.min(...cells.map(c => c.x));
+            let maxX = Math.max(...cells.map(c => c.x));
+            let minY = Math.min(...cells.map(c => c.y));
+            let maxY = Math.max(...cells.map(c => c.y));
+            let w = maxX - minX + 1;
+            let h = maxY - minY + 1;
+            
+            const pColor = {
+                'single': 'bg-indigo-500 shadow-[0_0_4px_rgba(99,102,241,0.6)]',
+                'single-new': 'bg-rose-500 shadow-[0_0_6px_rgba(225,29,72,0.8)]',
+                1: 'bg-blue-400 shadow-[0_0_5px_rgba(59,130,246,0.8)]',
+                2: 'bg-rose-400 shadow-[0_0_5px_rgba(225,29,72,0.8)]',
+                3: 'bg-emerald-400 shadow-[0_0_5px_rgba(16,185,129,0.8)]',
+                4: 'bg-amber-400 shadow-[0_0_5px_rgba(245,158,11,0.8)]'
+            }[p] || 'bg-slate-400';
+
+            let html = `<div class="flex items-center justify-center w-full h-full p-1"><div class="grid gap-[1px]" style="grid-template-columns: repeat(${w}, 1fr); grid-template-rows: repeat(${h}, 1fr); width: 100%; aspect-ratio: ${w}/${h}; max-height: 100%; max-width: 100%;">`;
+
+            for(let y = minY; y <= maxY; y++) {
+                for(let x = minX; x <= maxX; x++) {
+                    let isCell = cells.some(c => c.x===x && c.y===y);
+                    if(isCell) {
+                        html += `<div class="${pColor} rounded-[1px] md:rounded-sm"></div>`;
+                    } else {
+                        html += `<div class="opacity-0"></div>`;
+                    }
+                }
+            }
+            html += `</div></div>`;
+            return html;
+        }
+
+        // ================= 頁面與流程控制 =================
+        function switchPage(pageId) {
+            document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active');
+            if(pageId === 'explorationMode' && document.getElementById('gridContainer').innerHTML === '') initSingleMode();
+        }
+
+        // ================= 單人模式 =================
+        let singleSelected = new Set();
+        let singleUnlocked = new Array(11).fill(null); 
+        
+        function initSingleMode() {
+            const container = document.getElementById('gridContainer');
+            container.innerHTML = '';
             for (let y = 0; y < GRID_SIZE; y++) {
                 for (let x = 0; x < GRID_SIZE; x++) {
                     const cell = document.createElement('div');
-                    cell.className = 'grid-cell bg-slate-100 border-2 border-slate-200 rounded cursor-pointer aspect-square flex items-center justify-center text-xl font-bold';
-                    cell.dataset.x = x;
-                    cell.dataset.y = y;
-                    cell.onclick = () => toggleCell(cell, x, y);
-                    gridContainer.appendChild(cell);
+                    cell.className = 'grid-cell bg-slate-100 border-2 border-slate-200 rounded cursor-pointer text-xl';
+                    cell.dataset.x = x; cell.dataset.y = y;
+                    cell.onclick = () => toggleSingleCell(x, y, cell);
+                    container.appendChild(cell);
                 }
             }
         }
 
-        function renderLocks() {
+        function toggleSingleCell(x, y, cell) {
+            const key = `${x},${y}`;
+            if (singleSelected.has(key)) {
+                singleSelected.delete(key);
+                cell.className = 'grid-cell bg-slate-100 border-2 border-slate-200 rounded cursor-pointer text-xl';
+            } else {
+                if (singleSelected.size >= 6) return alert('只能選 6 個！');
+                singleSelected.add(key);
+                cell.className = 'grid-cell cell-single-active border-2 rounded cursor-pointer text-xl';
+            }
+            document.getElementById('countDisplay').innerText = singleSelected.size;
+            document.querySelectorAll('#gridContainer .grid-cell').forEach(c => c.innerText = '');
+            let idx = 1;
+            singleSelected.forEach(k => {
+                const [cx, cy] = k.split(',');
+                document.querySelector(`#gridContainer .grid-cell[data-x="${cx}"][data-y="${cy}"]`).innerText = idx++;
+            });
+            resetSingleResult();
+        }
+
+        function clearGridSingle() {
+            singleSelected.clear();
+            document.getElementById('countDisplay').innerText = 0;
+            initSingleMode();
+            resetSingleResult();
+        }
+
+        function resetSingleResult() {
+            document.getElementById('resultBox').classList.add('hidden');
+            document.getElementById('cubeScene').style.display = 'none';
+            document.getElementById('initialMessage').style.display = 'flex';
+            document.getElementById('actionButtons').classList.add('hidden');
+        }
+
+        function checkNetSingle() {
+            const res = evaluateNet(singleSelected);
+            const rb = document.getElementById('resultBox');
+            document.getElementById('initialMessage').style.display = 'none';
+            rb.classList.remove('hidden', 'bg-emerald-100', 'bg-rose-100', 'bg-indigo-100');
+            
+            if (!res.valid) {
+                rb.classList.add('bg-rose-100', 'text-rose-800', 'border-rose-200');
+                document.getElementById('resultIcon').className = 'fa-solid fa-xmark-circle text-4xl mb-2';
+                document.getElementById('resultTitle').innerText = '失敗';
+                document.getElementById('resultDesc').innerText = res.reason;
+                
+                if (res.tree && res.tree.length === 6) {
+                    build3D(res.tree, false); 
+                } else {
+                    document.getElementById('cubeScene').style.display = 'none';
+                    document.getElementById('actionButtons').classList.add('hidden');
+                }
+            } else {
+                if (singleUnlocked[res.matchIndex]) {
+                    rb.classList.add('bg-indigo-100', 'text-indigo-800', 'border-indigo-200');
+                    document.getElementById('resultIcon').className = 'fa-solid fa-face-smile text-4xl mb-2';
+                    document.getElementById('resultTitle').innerText = '正確！';
+                    document.getElementById('resultDesc').innerText = '您已經收集過這個形狀了！';
+                    build3D(res.tree, true);
+                } else {
+                    singleUnlocked[res.matchIndex] = res.cells;
+                    document.getElementById('progressText').innerText = singleUnlocked.filter(Boolean).length;
+                    
+                    rb.classList.add('bg-emerald-100', 'text-emerald-800', 'border-emerald-200');
+                    document.getElementById('resultIcon').className = 'fa-solid fa-check-circle text-4xl mb-2';
+                    document.getElementById('resultTitle').innerText = '解鎖新圖形！';
+                    document.getElementById('resultDesc').innerText = '太棒了！收集圖鑑已更新。';
+                    
+                    build3D(res.tree, true);
+                    openCollectionModal(res.matchIndex);
+                }
+            }
+        }
+
+        function openCollectionModal(newlyUnlockedIndex = -1) {
+            renderLocksGrid(newlyUnlockedIndex);
+            const btn = document.getElementById('closeModalBtn');
+            if (newlyUnlockedIndex !== -1) {
+                btn.innerHTML = '<i class="fa-solid fa-box-open mr-2"></i>去摺疊看看 3D 效果！';
+                btn.className = 'mt-8 bg-rose-600 hover:bg-rose-700 transition text-white px-8 py-3 rounded-full font-bold w-full mx-auto block text-lg shadow-lg';
+            } else {
+                btn.innerHTML = '繼續探索';
+                btn.className = 'mt-8 bg-slate-800 hover:bg-slate-700 transition text-white px-8 py-3 rounded-full font-bold w-full mx-auto block text-lg shadow-lg';
+            }
+            document.getElementById('collectionModal').classList.replace('hidden', 'flex');
+        }
+
+        function renderLocksGrid(newlyUnlockedIndex = -1) {
             const grid = document.getElementById('locksGrid');
             grid.innerHTML = '';
-            baseNetsCoords.forEach((net, idx) => {
-                const slot = document.createElement('div');
-                slot.className = 'relative w-[70px] h-[70px] md:w-[90px] md:h-[90px] bg-slate-100 border-2 border-slate-200 rounded-2xl flex items-center justify-center transition-all duration-500';
-                slot.id = `slot-${idx}`;
-                
-                const lockIcon = document.createElement('i');
-                lockIcon.className = 'fa-solid fa-lock text-3xl md:text-4xl text-slate-300 absolute transition-all duration-500 lock-icon';
-                slot.appendChild(lockIcon);
-
-                const shapeContainer = document.createElement('div');
-                shapeContainer.className = 'shape-container absolute inset-0 flex items-center justify-center opacity-0 scale-50 transition-all duration-700';
-                
-                let nMinX = Math.min(...net.map(p => p[0]));
-                let nMaxX = Math.max(...net.map(p => p[0]));
-                let nMinY = Math.min(...net.map(p => p[1]));
-                let nMaxY = Math.max(...net.map(p => p[1]));
-                
-                const inner = document.createElement('div');
-                inner.style.position = 'relative';
-                inner.style.width = `${(nMaxX - nMinX + 1) * 12}px`;
-                inner.style.height = `${(nMaxY - nMinY + 1) * 12}px`;
-                
-                net.forEach(p => {
-                    const block = document.createElement('div');
-                    block.className = `absolute w-[12px] h-[12px] bg-blue-500 border border-blue-600 rounded-sm shadow-sm`;
-                    block.style.left = `${(p[0] - nMinX)*12}px`;
-                    block.style.top = `${(p[1] - nMinY)*12}px`;
-                    inner.appendChild(block);
-                });
-                
-                shapeContainer.appendChild(inner);
-                slot.appendChild(shapeContainer);
-                grid.appendChild(slot);
-            });
-            updateProgress();
-        }
-
-        function updateProgress() {
-            const count = unlockedShapes.filter(Boolean).length;
-            document.getElementById('progressText').innerText = count;
-        }
-
-        function toggleCell(cell, x, y) {
-            const key = `${x},${y}`;
-            if (selectedCells.has(key)) {
-                selectedCells.delete(key);
-                cell.classList.remove('bg-blue-500', 'border-blue-600', 'text-white');
-                cell.classList.add('bg-slate-100', 'border-slate-200');
-            } else {
-                if (selectedCells.size >= 6) {
-                    showResult(false, '超過限制', '一個正方體只有 6 個面，請取消一些選擇。');
-                    return;
-                }
-                selectedCells.add(key);
-                cell.classList.remove('bg-slate-100', 'border-slate-200');
-                cell.classList.add('bg-blue-500', 'border-blue-600', 'text-white');
-            }
-            updateCount();
-            updateGridNumbers();
-            resetResultUI();
-        }
-
-        function updateGridNumbers() {
-            document.querySelectorAll('.grid-cell').forEach(cell => cell.innerText = '');
-            let index = 1;
-            selectedCells.forEach(key => {
-                const [x, y] = key.split(',');
-                const cell = document.querySelector(`.grid-cell[data-x="${x}"][data-y="${y}"]`);
-                if (cell) cell.innerText = index;
-                index++;
-            });
-        }
-
-        function updateCount() {
-            countDisplay.innerText = selectedCells.size;
-            if (selectedCells.size === 6) {
-                countDisplay.parentElement.classList.replace('bg-blue-100', 'bg-emerald-100');
-                countDisplay.parentElement.classList.replace('text-blue-800', 'text-emerald-800');
-            } else {
-                countDisplay.parentElement.classList.replace('bg-emerald-100', 'bg-blue-100');
-                countDisplay.parentElement.classList.replace('text-emerald-800', 'text-blue-800');
-            }
-        }
-
-        function clearGrid() {
-            selectedCells.clear();
-            const cells = document.querySelectorAll('.grid-cell');
-            cells.forEach(cell => {
-                cell.classList.remove('bg-blue-500', 'border-blue-600', 'text-white');
-                cell.classList.add('bg-slate-100', 'border-slate-200');
-            });
-            updateCount();
-            updateGridNumbers();
-            resetResultUI();
-        }
-
-        function resetResultUI() {
-            resultBox.classList.add('hidden');
-            cubeScene.style.display = 'none';
-            initialMessage.style.display = 'flex';
-            document.getElementById('actionButtons').classList.add('hidden');
-            if(foldTimeout) clearTimeout(foldTimeout);
-            cancelAnimationFrame(foldAnimId);
-            setFoldAngle(0);
-        }
-
-        function showResult(isValid, title, desc, isDuplicate = false) {
-            initialMessage.style.display = 'none';
-            resultBox.classList.remove('hidden', 'bg-emerald-100', 'border-emerald-200', 'text-emerald-800', 'bg-rose-100', 'border-rose-200', 'text-rose-800', 'bg-amber-100', 'border-amber-200', 'text-amber-800', 'bg-indigo-100', 'border-indigo-200', 'text-indigo-800');
-            
-            resultBox.classList.remove('animate-pop');
-            void resultBox.offsetWidth; 
-            resultBox.classList.add('animate-pop');
-
-            if (isValid) {
-                if (isDuplicate) {
-                    resultBox.classList.add('bg-indigo-100', 'border-indigo-200', 'text-indigo-800');
-                    resultIcon.className = 'fa-solid fa-face-smile-wink text-indigo-500';
+            for(let i=0; i<11; i++){
+                const div = document.createElement('div');
+                if (singleUnlocked[i]) {
+                    if (i === newlyUnlockedIndex) {
+                        div.className = `w-16 h-16 md:w-20 md:h-20 rounded-xl border-4 border-rose-400 bg-rose-50 flex items-center justify-center overflow-visible animate-success-pop relative`;
+                        div.innerHTML = generateExactNetHTML(singleUnlocked[i], 'single-new');
+                        div.innerHTML += `<div class="absolute -top-3 -right-3 bg-rose-500 text-white text-[10px] md:text-xs font-black px-2 py-0.5 rounded-full shadow-md animate-bounce">NEW</div>`;
+                    } else {
+                        div.className = `w-16 h-16 md:w-20 md:h-20 rounded-xl border-2 border-indigo-300 bg-indigo-50 shadow-sm flex items-center justify-center overflow-hidden transition-all`;
+                        div.innerHTML = generateExactNetHTML(singleUnlocked[i], 'single');
+                    }
                 } else {
-                    resultBox.classList.add('bg-emerald-100', 'border-emerald-200', 'text-emerald-800');
-                    resultIcon.className = 'fa-solid fa-circle-check text-emerald-600';
+                    div.className = `w-16 h-16 md:w-20 md:h-20 rounded-xl flex items-center justify-center text-2xl border-2 bg-slate-100 border-slate-200 text-slate-300`;
+                    div.innerHTML = `<i class="fa-solid fa-lock"></i>`;
                 }
-            } else {
-                if (title === '數量不對' || title === '超過限制' || title === '圖形未連接') {
-                    resultBox.classList.add('bg-amber-100', 'border-amber-200', 'text-amber-800');
-                    resultIcon.className = 'fa-solid fa-triangle-exclamation text-amber-600';
-                } else {
-                    resultBox.classList.add('bg-rose-100', 'border-rose-200', 'text-rose-800');
-                    resultIcon.className = 'fa-solid fa-circle-xmark text-rose-600';
-                }
+                grid.appendChild(div);
             }
-            
-            resultTitle.innerText = title;
-            resultDesc.innerText = desc;
         }
 
-        function setFoldAngle(angle) {
-            angle = Math.max(0, Math.min(90, angle));
-            document.documentElement.style.setProperty('--fold-angle', `${angle}deg`);
-            document.getElementById('foldSlider').value = angle;
-            isCurrentlyFolded = angle >= 90;
-            
-            const btn = document.getElementById('toggleFoldBtn');
-            if (isCurrentlyFolded) {
-                btn.innerHTML = '<i class="fa-solid fa-box-open mr-2"></i> 攤開平面';
-                btn.classList.replace('bg-indigo-600', 'bg-emerald-600');
-                btn.classList.replace('hover:bg-indigo-700', 'hover:bg-emerald-700');
-            } else {
-                btn.innerHTML = '<i class="fa-solid fa-box mr-2"></i> 摺疊起來';
-                btn.classList.replace('bg-emerald-600', 'bg-indigo-600');
-                btn.classList.replace('hover:bg-emerald-700', 'hover:bg-indigo-700');
-            }
+        // ================= 3D 構建與互動 =================
+        let isRotating3D = false;
+        let isPanning3D = false;
+        let prevX, prevY;
+        let rotX = -25, rotY = 45;
+        let panX = 0, panY = 0;
+
+        function build3D(treeNodes, isValid = true) {
+            document.getElementById('cubeScene').style.display = 'flex';
+            document.getElementById('actionButtons').classList.remove('hidden');
+            panX = 0; panY = 0; rotX = -25; rotY = 45;
+            document.getElementById('panZoomContainer').style.transform = `translate(0px, 0px)`;
+            document.getElementById('cubeRotator').style.transform = `rotateX(-25deg) rotateY(45deg)`;
+
+            const rotator = document.getElementById('cubeRotator');
+            rotator.innerHTML = '';
+            let domNodes = {};
+            treeNodes.forEach(node => {
+                let hinge = document.createElement('div');
+                hinge.className = `hinge ${node.dirFromParent}`;
+                let face = document.createElement('div');
+                face.className = `face ${isValid ? '' : 'invalid-face'}`;
+                face.innerText = node.cell.number;
+                hinge.appendChild(face);
+                domNodes[node.cell.id] = hinge; 
+            });
+
+            treeNodes.forEach(node => {
+                if (node.parentId === -1) rotator.appendChild(domNodes[node.cell.id]);
+                else domNodes[node.parentId].appendChild(domNodes[node.cell.id]);
+            });
+
+            document.getElementById('foldSlider').value = 0;
+            document.documentElement.style.setProperty('--fold-angle', '0deg');
         }
+
+        document.getElementById('foldSlider').addEventListener('input', (e) => {
+            document.documentElement.style.setProperty('--fold-angle', e.target.value + 'deg');
+        });
 
         function toggleFold() {
-            const targetAngle = isCurrentlyFolded ? 0 : 90;
-            animateToAngle(targetAngle);
-        }
-
-        function animateToAngle(target) {
-            cancelAnimationFrame(foldAnimId);
             const slider = document.getElementById('foldSlider');
-            let current = parseFloat(slider.value);
-            const step = target > current ? 4 : -4;
+            if(slider.value > 45) { slider.value = 0; document.documentElement.style.setProperty('--fold-angle', '0deg'); }
+            else { slider.value = 90; document.documentElement.style.setProperty('--fold-angle', '90deg'); }
+        }
 
-            function stepAnim() {
-                current += step;
-                if ((step > 0 && current >= target) || (step < 0 && current <= target)) {
-                    setFoldAngle(target);
+        const scene = document.getElementById('cubeScene');
+        scene.addEventListener('contextmenu', e => e.preventDefault());
+        scene.addEventListener('mousedown', e => { 
+            if (e.button === 0) { isRotating3D = true; scene.style.cursor = 'grabbing'; } 
+            else if (e.button === 2) { isPanning3D = true; e.preventDefault(); scene.style.cursor = 'move'; }
+            prevX = e.clientX; prevY = e.clientY; 
+        });
+
+        window.addEventListener('mouseup', () => { isRotating3D = false; isPanning3D = false; scene.style.cursor = 'grab'; });
+        window.addEventListener('mousemove', e => {
+            if (isRotating3D) {
+                rotY += (e.clientX - prevX) * 0.5; rotX -= (e.clientY - prevY) * 0.5;
+                document.getElementById('cubeRotator').style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+                prevX = e.clientX; prevY = e.clientY;
+            } else if (isPanning3D) {
+                panX += (e.clientX - prevX); panY += (e.clientY - prevY);
+                document.getElementById('panZoomContainer').style.transform = `translate(${panX}px, ${panY}px)`;
+                prevX = e.clientX; prevY = e.clientY;
+            }
+        });
+
+        // ================= 多人對戰模式 =================
+        let vsPlayerCount = 2;
+        let vsTimeLimit = 180;
+        let vsTimer = 0;
+        let vsInterval = null;
+        let vsState = {};
+
+        function openMultiplayerSetup() {
+            selectPlayerCount(2); 
+            document.getElementById('setupModal').classList.replace('hidden', 'flex');
+        }
+        function closeMultiplayerSetup() {
+            document.getElementById('setupModal').classList.replace('flex', 'hidden');
+        }
+
+        function selectPlayerCount(count) {
+            vsPlayerCount = count;
+            [2, 3, 4].forEach(n => {
+                const btn = document.getElementById(`btn-p${n}`);
+                if(n === count) {
+                    btn.classList.replace('border-slate-200', 'border-rose-500');
+                    btn.classList.replace('text-slate-600', 'text-rose-700');
+                    btn.classList.add('bg-rose-50');
                 } else {
-                    setFoldAngle(current);
-                    foldAnimId = requestAnimationFrame(stepAnim);
+                    btn.classList.replace('border-rose-500', 'border-slate-200');
+                    btn.classList.replace('text-rose-700', 'text-slate-600');
+                    btn.classList.remove('bg-rose-50');
+                }
+            });
+        }
+
+        function startVersusMode() {
+            vsTimeLimit = parseInt(document.getElementById('timeSelect').value);
+            closeMultiplayerSetup();
+            switchPage('versusMode');
+            
+            vsState = {};
+            for(let p=1; p<=4; p++) {
+                const panel = document.getElementById(`panel-p${p}`);
+                if (p <= vsPlayerCount) {
+                    panel.classList.remove('hidden');
+                    panel.classList.add('flex');
+                    vsState[p] = { selected: new Set(), unlocked: new Array(11).fill(false), score: 0 };
+                    initVersusGrid(p);
+                } else {
+                    panel.classList.add('hidden');
+                    panel.classList.remove('flex');
                 }
             }
-            stepAnim();
-        }
 
-        const OPPOSITE = { 0:1, 1:0, 2:3, 3:2, 4:5, 5:4 };
-
-        function getNextOrientation(face, up, right, direction) {
-            if (direction === 'UP') return { face: up, up: OPPOSITE[face], right: right };
-            if (direction === 'DOWN') return { face: OPPOSITE[up], up: face, right: right };
-            if (direction === 'RIGHT') return { face: right, up: up, right: OPPOSITE[face] };
-            if (direction === 'LEFT') return { face: OPPOSITE[right], up: up, right: face };
-        }
-
-        function buildTree(cells) {
-            let root = { ...cells[0], children: [] };
-            let visited = new Set([cells[0].key]);
-            let queue = [root];
-            let cellMap = new Map(cells.map(c => [c.key, c]));
-
-            while(queue.length > 0) {
-                let curr = queue.shift();
-                const dirs = [
-                    { dx: 0, dy: -1, dir: 'TOP' },
-                    { dx: 0, dy: 1, dir: 'BOTTOM' },
-                    { dx: -1, dy: 0, dir: 'LEFT' },
-                    { dx: 1, dy: 0, dir: 'RIGHT' }
-                ];
-                for (let d of dirs) {
-                    let nx = curr.x + d.dx;
-                    let ny = curr.y + d.dy;
-                    let nKey = `${nx},${ny}`;
-                    if (cellMap.has(nKey) && !visited.has(nKey)) {
-                        visited.add(nKey);
-                        let targetCell = cellMap.get(nKey);
-                        let childNode = { x: nx, y: ny, key: nKey, number: targetCell.number, children: [], parentDir: d.dir };
-                        curr.children.push(childNode);
-                        queue.push(childNode);
-                    }
-                }
-            }
-            return root;
-        }
-
-        function createFaceDOM(node, isRoot = false) {
-            let container = document.createElement('div');
-            if (isRoot) {
-                container.className = 'net-root';
-                container.id = 'dynamicNet';
-            } else {
-                container.className = 'hinge ' + node.parentDir;
-            }
-
-            let face = document.createElement('div');
-            face.className = 'face';
-            face.innerText = node.number;
-            container.appendChild(face);
-
-            for (let child of node.children) {
-                container.appendChild(createFaceDOM(child, false));
-            }
-            return container;
-        }
-
-        function playUnlockAnimation(matchIndex) {
-            const modal = document.getElementById('collectionModal');
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-            
-            document.getElementById('modalActionContainer').classList.add('opacity-0');
-            
-            const count = unlockedShapes.filter(Boolean).length;
-            document.getElementById('modalTitle').innerHTML = count === 11 
-                ? '<i class="fa-solid fa-trophy text-amber-500 mr-2"></i> 恭喜！您已收集全部 11 種！' 
-                : '<i class="fa-solid fa-key text-amber-500 mr-2"></i> 發現新的展開圖！';
-
-            setTimeout(() => {
-                const slot = document.getElementById(`slot-${matchIndex}`);
-                const lockIcon = slot.querySelector('.lock-icon');
-                const shapeContainer = slot.querySelector('.shape-container');
-                
-                lockIcon.classList.remove('fa-lock', 'text-slate-300');
-                lockIcon.classList.add('fa-lock-open', 'text-amber-500', 'animate-bounce');
-                
-                slot.classList.replace('border-slate-200', 'border-amber-400');
-                slot.classList.replace('bg-slate-100', 'bg-amber-50');
-                slot.classList.add('animate-unlock-glow');
-                
-                setTimeout(() => {
-                    lockIcon.classList.remove('animate-bounce');
-                    lockIcon.classList.add('opacity-0', 'scale-0');
-                    
-                    shapeContainer.classList.remove('opacity-0', 'scale-50');
-                    shapeContainer.classList.add('opacity-100', 'scale-100');
-                    
-                    slot.classList.remove('animate-unlock-glow');
-                    slot.classList.add('shadow-lg', 'shadow-amber-200/50');
-
-                    document.getElementById('modalActionContainer').classList.remove('opacity-0');
-                }, 1200);
-                
-            }, 500);
-        }
-
-        function closeModalAndShow3D() {
-            document.getElementById('collectionModal').classList.add('hidden');
-            document.getElementById('collectionModal').classList.remove('flex');
-            
-            showResult(true, '解鎖成功！', '這是一個完美的正方體展開圖！快試著用滑鼠拖曳旋轉它，或是點擊摺疊看看！');
-            buildAndShow3D(window._pendingCells);
-        }
-
-        function buildAndShow3D(cells) {
-            const minX = Math.min(...cells.map(c => c.x));
-            const maxX = Math.max(...cells.map(c => c.x));
-            const minY = Math.min(...cells.map(c => c.y));
-            const maxY = Math.max(...cells.map(c => c.y));
-            const rootX = cells[0].x;
-            const rootY = cells[0].y;
-            const centerX = (minX + maxX) / 2;
-            const centerY = (minY + maxY) / 2;
-            
-            panX = (rootX - centerX) * 60;
-            panY = (rootY - centerY) * 60;
-            zoom = 1.2; 
-            rotX = -30;
-            rotY = 45;
-            
-            const tree = buildTree(cells);
-            const rotator = document.createElement('div');
-            rotator.className = 'rotator';
-            rotator.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg)`;
-            const netDOM = createFaceDOM(tree, true);
-            rotator.appendChild(netDOM);
-            
-            const panZoomContainer = document.getElementById('panZoomContainer') || document.createElement('div');
-            panZoomContainer.id = 'panZoomContainer';
-            panZoomContainer.innerHTML = '';
-            panZoomContainer.appendChild(rotator);
-            updateTransform(); 
-            
-            cubeScene.innerHTML = '';
-            cubeScene.appendChild(panZoomContainer);
-            cubeScene.style.display = 'flex'; 
-            
-            document.getElementById('actionButtons').classList.remove('hidden');
-            setFoldAngle(0);
-            
-            foldTimeout = setTimeout(() => {
-                if (!isCurrentlyFolded && document.getElementById('dynamicNet')) {
-                    toggleFold();
-                }
+            vsTimer = vsTimeLimit;
+            updateVsTimer();
+            clearInterval(vsInterval);
+            vsInterval = setInterval(() => {
+                vsTimer--;
+                updateVsTimer();
+                if(vsTimer <= 0) endVersusGame();
             }, 1000);
         }
 
-        function checkNet() {
-            if (selectedCells.size !== 6) {
-                showResult(false, '數量不對', '必須選擇剛好 6 個正方形！您目前選擇了 ' + selectedCells.size + ' 個。');
-                cubeScene.style.display = 'none';
-                return;
-            }
-
-            const cells = Array.from(selectedCells).map((key, index) => {
-                const [x, y] = key.split(',').map(Number);
-                return { x, y, key, number: index + 1 };
-            });
-
-            let visited = new Set();
-            let queue = [cells[0]];
-            visited.add(cells[0].key);
-            let connectedCount = 0;
-            let cellMap = new Map();
-            cells.forEach(c => cellMap.set(c.key, c));
-
-            while (queue.length > 0) {
-                let curr = queue.shift();
-                connectedCount++;
-                const dirs = [{dx:0, dy:-1}, {dx:0, dy:1}, {dx:-1, dy:0}, {dx:1, dy:0}];
-                
-                dirs.forEach(d => {
-                    let nx = curr.x + d.dx;
-                    let ny = curr.y + d.dy;
-                    let nKey = `${nx},${ny}`;
-                    if (cellMap.has(nKey) && !visited.has(nKey)) {
-                        visited.add(nKey);
-                        queue.push(cellMap.get(nKey));
-                    }
-                });
-            }
-
-            if (connectedCount !== 6) {
-                showResult(false, '圖形未連接', '所有的 6 個正方形必須邊對邊連接在一起。');
-                cubeScene.style.display = 'none';
-                return;
-            }
-
-            let isValidNet = true;
-            let resultMsg = { title: '太棒了！', desc: '這是一個完美且正確的正方體展開圖！' };
-            let faceMap = new Map(); 
-            let foldQueue = [{ x: cells[0].x, y: cells[0].y, face: 0, up: 2, right: 4 }];
-            faceMap.set(cells[0].key, 0);
-            let seenFaces = new Set([0]);
-
-            while (foldQueue.length > 0) {
-                let curr = foldQueue.shift();
-                const moves = [
-                    { dx: 0, dy: -1, dir: 'UP' },
-                    { dx: 0, dy: 1, dir: 'DOWN' },
-                    { dx: -1, dy: 0, dir: 'LEFT' },
-                    { dx: 1, dy: 0, dir: 'RIGHT' }
-                ];
-
-                for (let move of moves) {
-                    let nx = curr.x + move.dx;
-                    let ny = curr.y + move.dy;
-                    let nKey = `${nx},${ny}`;
-
-                    if (cellMap.has(nKey)) {
-                        let nextState = getNextOrientation(curr.face, curr.up, curr.right, move.dir);
-                        if (!faceMap.has(nKey)) {
-                            if (seenFaces.has(nextState.face)) {
-                                isValidNet = false;
-                                resultMsg = { title: '摺疊失敗', desc: '這不是有效的展開圖。摺疊時會有面重疊在一起！請觀察下方動畫。' };
-                            }
-                            seenFaces.add(nextState.face);
-                            faceMap.set(nKey, nextState.face);
-                            foldQueue.push({ x: nx, y: ny, face: nextState.face, up: nextState.up, right: nextState.right });
-                        }
-                    }
+        function initVersusGrid(p) {
+            document.getElementById(`score-p${p}`).innerText = '0';
+            document.getElementById(`count-p${p}`).innerText = '0';
+            const grid = document.getElementById(`grid-p${p}`);
+            const locks = document.getElementById(`locks-p${p}`);
+            grid.innerHTML = ''; locks.innerHTML = '';
+            
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    const cell = document.createElement('div');
+                    // 放大網格預設字體
+                    cell.className = 'grid-cell bg-slate-700 border border-slate-600 rounded-sm cursor-pointer text-slate-300 flex items-center justify-center text-sm md:text-xl font-black transition-colors';
+                    cell.dataset.x = x; cell.dataset.y = y;
+                    cell.onclick = () => toggleVersusCell(p, x, y, cell);
+                    grid.appendChild(cell);
                 }
             }
+            
+            // 緊湊的頂部圖鑑鎖頭
+            for(let i=0; i<11; i++){
+                const l = document.createElement('div');
+                l.id = `lock-p${p}-${i}`;
+                l.className = `w-7 h-7 md:w-9 md:h-9 rounded border border-slate-700 flex items-center justify-center mini-lock opacity-40 bg-slate-800 shadow-inner`;
+                l.innerHTML = `<i class="fa-solid fa-lock text-slate-500 text-[10px]"></i>`;
+                locks.appendChild(l);
+            }
+        }
 
-            if (isValidNet) {
-                let match = findMatchingNet(cells);
-                if (match) {
-                    window._pendingCells = cells;
-                    
-                    if (unlockedShapes[match.targetIndex]) {
-                        showResult(true, '正確的展開圖！', '很棒！不過這個形狀您之前已經收集過了，試著發掘其他還未解鎖的排法吧！', true);
-                        buildAndShow3D(cells);
-                    } else {
-                        unlockedShapes[match.targetIndex] = true;
-                        updateProgress();
-                        playUnlockAnimation(match.targetIndex);
-                    }
-                }
+        function toggleVersusCell(p, x, y, cell) {
+            if(vsTimer <= 0) return;
+            const key = `${x},${y}`;
+            const st = vsState[p];
+            if (st.selected.has(key)) {
+                st.selected.delete(key);
+                cell.className = 'grid-cell bg-slate-700 border border-slate-600 rounded-sm cursor-pointer text-slate-300 flex items-center justify-center text-sm md:text-xl font-black transition-colors';
             } else {
-                showResult(false, resultMsg.title, resultMsg.desc);
-                buildAndShow3D(cells);
+                if (st.selected.size >= 6) return showToast(p, 'warning', '只能選 6 個！');
+                st.selected.add(key);
+                cell.className = `grid-cell active-p${p} rounded-sm cursor-pointer flex items-center justify-center text-sm md:text-xl font-black transition-colors`;
             }
-        }
-
-        function updateTransform() {
-            const container = document.getElementById('panZoomContainer');
-            const rotator = document.querySelector('.rotator');
-            if (container) {
-                container.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
-            }
-            if (rotator) {
-                rotator.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg)`;
-            }
-        }
-
-        function startDrag(e) {
-            if (cubeScene.style.display === 'none') return;
+            document.getElementById(`count-p${p}`).innerText = st.selected.size;
             
-            if (e.type === 'mousedown') {
-                if (e.button === 2 || e.ctrlKey) { 
-                    isPanning = true;
-                    isDragging = false;
-                } else { 
-                    isDragging = true;
-                    isPanning = false;
-                }
-                prevMousePos = { x: e.clientX, y: e.clientY };
-            } else if (e.type === 'touchstart') {
-                if (e.touches.length === 2) { 
-                    isDragging = false;
-                    isPanning = true;
-                    initialPinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-                    prevMousePos = {
-                        x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
-                        y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+            document.querySelectorAll(`#grid-p${p} .grid-cell`).forEach(c => c.innerText = '');
+            let idx = 1;
+            st.selected.forEach(k => {
+                const [cx, cy] = k.split(',');
+                document.querySelector(`#grid-p${p} .grid-cell[data-x="${cx}"][data-y="${cy}"]`).innerText = idx++;
+            });
+        }
+
+        function clearGridVersus(p) {
+            vsState[p].selected.clear();
+            document.getElementById(`count-p${p}`).innerText = '0';
+            document.querySelectorAll(`#grid-p${p} .grid-cell`).forEach(c => {
+                c.className = 'grid-cell bg-slate-700 border border-slate-600 rounded-sm cursor-pointer text-slate-300 flex items-center justify-center text-sm md:text-xl font-black transition-colors';
+                c.innerText = '';
+            });
+        }
+
+        function checkNetVersus(p) {
+            if(vsTimer <= 0) return;
+            const st = vsState[p];
+            const res = evaluateNet(st.selected);
+            if (!res.valid) {
+                showToast(p, 'error', res.reason);
+            } else {
+                if(st.unlocked[res.matchIndex]) {
+                    showToast(p, 'warning', '已經找過這種類型囉！');
+                } else {
+                    st.unlocked[res.matchIndex] = true;
+                    st.score++;
+                    document.getElementById(`score-p${p}`).innerText = st.score;
+                    
+                    const lock = document.getElementById(`lock-p${p}-${res.matchIndex}`);
+                    
+                    const pColors = {
+                        1: 'bg-blue-900/40 border-blue-500',
+                        2: 'bg-rose-900/40 border-rose-500',
+                        3: 'bg-emerald-900/40 border-emerald-500',
+                        4: 'bg-amber-900/40 border-amber-500'
                     };
-                } else { 
-                    isDragging = true;
-                    isPanning = false;
-                    prevMousePos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                    
+                    lock.className = `w-7 h-7 md:w-9 md:h-9 rounded border flex items-center justify-center mini-lock animate-pop shadow-[0_0_8px_currentColor] opacity-100 ${pColors[p]}`;
+                    lock.innerHTML = generateExactNetHTML(res.cells, p);
+                    
+                    showToast(p, 'success', '解鎖成功！+1');
+                    setTimeout(() => clearGridVersus(p), 300); 
+                    
+                    if(st.score === 11) forceEndVersus(); 
                 }
             }
         }
 
-        function drag(e) {
-            if (!isDragging && !isPanning) return;
+        function showToast(p, type, msg) {
+            const toast = document.getElementById(`toast-p${p}`);
+            const icon = document.getElementById(`toastIcon-p${p}`);
+            document.getElementById(`toastTitle-p${p}`).innerText = msg;
             
-            if (isDragging) { 
-                let clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
-                let clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
-                
-                let deltaX = clientX - prevMousePos.x;
-                let deltaY = clientY - prevMousePos.y;
-
-                rotY += deltaX * 0.6;
-                rotX -= deltaY * 0.6;
-                prevMousePos = { x: clientX, y: clientY };
-                updateTransform();
-                
-            } else if (isPanning) { 
-                if (e.type === 'mousemove') {
-                    panX += e.clientX - prevMousePos.x;
-                    panY += e.clientY - prevMousePos.y;
-                    prevMousePos = { x: e.clientX, y: e.clientY };
-                    updateTransform();
-                } else if (e.type === 'touchmove' && e.touches.length === 2) {
-                    const currentDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-                    const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-                    const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-                    
-                    if (initialPinchDist) {
-                        const zoomDelta = (currentDist - initialPinchDist) * 0.005;
-                        zoom = Math.max(0.5, Math.min(3, zoom + zoomDelta));
-                        initialPinchDist = currentDist;
-                    }
-                    panX += midX - prevMousePos.x;
-                    panY += midY - prevMousePos.y;
-                    prevMousePos = { x: midX, y: midY };
-                    
-                    updateTransform();
-                }
-            }
+            toast.classList.remove('border-emerald-500', 'text-emerald-400', 'border-rose-500', 'text-rose-400', 'border-amber-500', 'text-amber-400');
+            
+            if(type === 'success') { toast.classList.add('border-emerald-500', 'text-emerald-400'); icon.className = 'fa-solid fa-circle-check text-2xl md:text-3xl mb-1'; }
+            else if(type === 'error') { toast.classList.add('border-rose-500', 'text-rose-400'); icon.className = 'fa-solid fa-circle-xmark text-2xl md:text-3xl mb-1'; }
+            else { toast.classList.add('border-amber-500', 'text-amber-400'); icon.className = 'fa-solid fa-triangle-exclamation text-2xl md:text-3xl mb-1'; }
+            
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 1200);
         }
 
-        function endDrag() {
-            isDragging = false;
-            isPanning = false;
-            initialPinchDist = null;
+        function updateVsTimer() {
+            const m = Math.floor(vsTimer / 60).toString().padStart(2, '0');
+            const s = (vsTimer % 60).toString().padStart(2, '0');
+            const display = document.getElementById('vsTimerDisplay');
+            display.innerText = `${m}:${s}`;
+            if(vsTimer <= 10) display.classList.add('text-rose-500', 'animate-pulse');
+            else display.classList.remove('text-rose-500', 'animate-pulse');
         }
 
-        cubeScene.addEventListener('contextmenu', e => e.preventDefault()); 
-        
-        cubeScene.addEventListener('wheel', e => { 
-            if (cubeScene.style.display === 'none') return;
-            e.preventDefault();
-            const zoomDelta = e.deltaY > 0 ? -0.1 : 0.1;
-            zoom = Math.max(0.5, Math.min(3, zoom + zoomDelta));
-            updateTransform();
-        }, { passive: false });
+        function forceEndVersus() {
+            clearInterval(vsInterval);
+            vsTimer = 0;
+            endVersusGame();
+        }
 
-        cubeScene.addEventListener('mousedown', startDrag);
-        cubeScene.addEventListener('touchstart', startDrag, { passive: true });
-        
-        document.addEventListener('mousemove', drag);
-        document.addEventListener('touchmove', drag, { passive: true });
-        
-        document.addEventListener('mouseup', endDrag);
-        document.addEventListener('touchend', endDrag);
-
-        window.onload = () => {
-            initGrid();
-            renderLocks(); 
+        function endVersusGame() {
+            clearInterval(vsInterval);
+            let maxScore = -1;
+            let winners = [];
+            const board = document.getElementById('vsScoreBoard');
+            board.innerHTML = '';
+            const colors = ['blue', 'rose', 'emerald', 'amber'];
             
-            const foldSlider = document.getElementById('foldSlider');
-            if(foldSlider) {
-                foldSlider.addEventListener('input', (e) => {
-                    cancelAnimationFrame(foldAnimId);
-                    setFoldAngle(parseFloat(e.target.value));
-                });
+            for(let p=1; p<=vsPlayerCount; p++) {
+                const s = vsState[p].score;
+                if(s > maxScore) { maxScore = s; winners = [p]; }
+                else if(s === maxScore) { winners.push(p); }
+                
+                board.innerHTML += `
+                    <div class="bg-${colors[p-1]}-50 border-2 border-${colors[p-1]}-200 rounded-2xl p-6 w-32 md:w-40 text-center">
+                        <div class="text-${colors[p-1]}-600 font-bold mb-2">玩家 ${p}</div>
+                        <div class="text-5xl font-black text-${colors[p-1]}-700">${s}</div>
+                    </div>
+                `;
             }
-        };
+
+            const title = document.getElementById('vsWinnerTitle');
+            if(winners.length > 1) title.innerHTML = '<span class="text-amber-500">平手！實力相當！</span>';
+            else title.innerHTML = `<span class="text-${colors[winners[0]-1]}-600">玩家 ${winners[0]} 獲勝！</span>`;
+
+            document.getElementById('vsGameOverModal').classList.replace('hidden', 'flex');
+        }
+
     </script>
 </body>
 </html>
