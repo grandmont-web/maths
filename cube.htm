@@ -34,6 +34,9 @@
 
         .mini-lock { transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         
+        /* 電腦模擬按壓按鈕動畫 */
+        .sim-active-btn { transform: scale(0.95) !important; background-color: #be123c !important; box-shadow: inset 0 4px 6px rgba(0,0,0,0.3) !important; }
+
         /* 3D 摺疊動畫專用 */
         .scene { width: 100%; height: 300px; perspective: 1000px; display: none; align-items: center; justify-content: center; cursor: grab; }
         #panZoomContainer { transform-style: preserve-3d; transition: transform 0.1s ease-out; }
@@ -46,7 +49,7 @@
         .hinge.BOTTOM { left: 0; top: 60px; transform-origin: top center; transform: rotateX(var(--fold-angle)); }
         .hinge.ROOT { left: 0; top: 0; transform-origin: center; }
         .face { width: 100%; height: 100%; position: absolute; left: 0; top: 0; background: rgba(59, 130, 246, 0.85); border: 2px solid white; box-shadow: inset 0 0 15px rgba(0,0,0,0.2); backface-visibility: visible; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 900; color: white; }
-        .face.invalid-face { background: rgba(225, 29, 72, 0.85); /* 錯誤時面顯示為紅色 */ }
+        .face.invalid-face { background: rgba(225, 29, 72, 0.85); }
         
         @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 80% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
         .animate-pop { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
@@ -87,7 +90,7 @@
                         <i class="fa-solid fa-users text-2xl text-rose-600"></i>
                     </div>
                     <h2 class="text-2xl font-bold text-slate-700 mb-2">多人對戰模式</h2>
-                    <p class="text-slate-500 text-sm">支援 2~4 人！適合電子白板，同螢幕各自挑戰。</p>
+                    <p class="text-slate-500 text-sm">支援單人打電腦，或 2~4 人同螢幕各自挑戰！</p>
                 </button>
             </div>
         </div>
@@ -95,17 +98,47 @@
 
     <!-- ==================== 對戰設定 Modal ==================== -->
     <div id="setupModal" class="fixed inset-0 z-50 bg-slate-900/80 hidden flex-col items-center justify-center backdrop-blur-sm">
-        <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-md w-full animate-pop relative">
+        <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-xl w-full animate-pop relative mx-4">
             <button onclick="closeMultiplayerSetup()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-2xl"><i class="fa-solid fa-xmark"></i></button>
             <h2 class="text-3xl font-extrabold text-slate-800 mb-6 text-center"><i class="fa-solid fa-gear text-rose-500 mr-2"></i>對戰設定</h2>
             
             <div class="mb-6">
                 <label class="block text-lg font-bold text-slate-700 mb-3">選擇遊玩人數</label>
-                <div class="grid grid-cols-3 gap-3">
-                    <button onclick="selectPlayerCount(2)" id="btn-p2" class="p-btn border-2 border-rose-500 bg-rose-50 text-rose-700 py-3 rounded-xl font-bold transition-all">2 人</button>
-                    <button onclick="selectPlayerCount(3)" id="btn-p3" class="p-btn border-2 border-slate-200 text-slate-600 py-3 rounded-xl font-bold transition-all">3 人</button>
-                    <button onclick="selectPlayerCount(4)" id="btn-p4" class="p-btn border-2 border-slate-200 text-slate-600 py-3 rounded-xl font-bold transition-all">4 人</button>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
+                    <button onclick="selectPlayerCount(1)" id="btn-p1" class="p-btn border-2 border-slate-200 text-slate-600 py-3 px-1 sm:px-2 rounded-xl font-bold transition-all text-xs sm:text-sm md:text-base whitespace-nowrap"><i class="fa-solid fa-robot mr-1"></i>1 人 (vs 電腦)</button>
+                    <button onclick="selectPlayerCount(2)" id="btn-p2" class="p-btn border-2 border-rose-500 bg-rose-50 text-rose-700 py-3 rounded-xl font-bold transition-all text-xs sm:text-sm md:text-base">2 人</button>
+                    <button onclick="selectPlayerCount(3)" id="btn-p3" class="p-btn border-2 border-slate-200 text-slate-600 py-3 rounded-xl font-bold transition-all text-xs sm:text-sm md:text-base">3 人</button>
+                    <button onclick="selectPlayerCount(4)" id="btn-p4" class="p-btn border-2 border-slate-200 text-slate-600 py-3 rounded-xl font-bold transition-all text-xs sm:text-sm md:text-base">4 人</button>
                 </div>
+            </div>
+
+            <!-- 電腦難度選擇 (僅單人模式顯示) -->
+            <div id="cpuDifficultyContainer" class="mb-6 hidden">
+                <label class="block text-lg font-bold text-slate-700 mb-3 flex items-center justify-between">
+                    <span>電腦難度</span>
+                    <button onclick="resetLocks()" class="text-xs text-slate-400 hover:text-rose-500 font-normal"><i class="fa-solid fa-rotate-left"></i> 重設進度</button>
+                </label>
+                <div class="grid grid-cols-3 sm:grid-cols-5 gap-2 relative">
+                    <button onclick="selectCpuDifficulty('BB')" id="btn-cpu-BB" class="cpu-btn border-2 border-slate-200 text-slate-600 py-2 rounded-xl font-bold transition-all text-xs sm:text-sm">BB <i class="fa-solid fa-baby ml-1"></i></button>
+                    <button onclick="selectCpuDifficulty('學童')" id="btn-cpu-student" class="cpu-btn border-2 border-slate-200 text-slate-600 py-2 rounded-xl font-bold transition-all text-xs sm:text-sm">學童 <i class="fa-solid fa-child ml-1"></i></button>
+                    <button onclick="selectCpuDifficulty('智者')" id="btn-cpu-wise" class="cpu-btn border-2 border-slate-200 text-slate-600 py-2 rounded-xl font-bold transition-all text-xs sm:text-sm">智者 <i class="fa-solid fa-brain ml-1"></i></button>
+                    
+                    <button onclick="selectCpuDifficulty('高手')" id="btn-cpu-pro" class="cpu-btn border-2 border-slate-200 text-slate-600 py-2 rounded-xl font-bold transition-all text-xs sm:text-sm relative overflow-hidden group">
+                        <span class="btn-text">高手 <i class="fa-solid fa-star ml-1 text-amber-500"></i></span>
+                        <div id="lock-pro" class="absolute inset-0 bg-slate-200/90 flex flex-col items-center justify-center text-slate-500 backdrop-blur-[1px] transition-opacity">
+                            <i class="fa-solid fa-lock text-sm mb-0.5"></i>
+                        </div>
+                    </button>
+                    
+                    <button onclick="selectCpuDifficulty('無敵')" id="btn-cpu-god" class="cpu-btn border-2 border-slate-200 text-slate-600 py-2 rounded-xl font-bold transition-all text-xs sm:text-sm relative overflow-hidden group">
+                        <span class="btn-text">無敵 <i class="fa-solid fa-fire ml-1 text-rose-500"></i></span>
+                        <div id="lock-god" class="absolute inset-0 bg-slate-200/90 flex flex-col items-center justify-center text-slate-500 backdrop-blur-[1px] transition-opacity">
+                            <i class="fa-solid fa-lock text-sm mb-0.5"></i>
+                        </div>
+                    </button>
+                </div>
+                <!-- 解鎖提示訊息 -->
+                <p id="cpuUnlockHint" class="text-rose-500 text-sm mt-3 font-bold hidden text-center bg-rose-50 py-2 rounded-lg border border-rose-200 transition-all"></p>
             </div>
 
             <div class="mb-8">
@@ -125,7 +158,6 @@
         </div>
     </div>
 
-
     <!-- ==================== 單人探索模式 ==================== -->
     <div id="explorationMode" class="page-section flex-col min-h-screen pb-10">
         <div class="bg-white shadow-sm px-6 py-4 flex justify-between items-center mb-6 sticky top-0 z-40">
@@ -136,7 +168,7 @@
         </div>
 
         <div class="max-w-6xl mx-auto p-4 flex flex-col lg:flex-row gap-6 w-full">
-            <!-- 左側：網格 -->
+            <!-- 單人介面不變... -->
             <div class="w-full lg:w-5/12 bg-white p-6 rounded-2xl shadow-lg border border-slate-100 flex flex-col">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-xl font-bold text-slate-700">繪製展開圖</h2>
@@ -160,10 +192,8 @@
                 </div>
             </div>
 
-            <!-- 右側：3D 顯示區 -->
             <div class="w-full lg:w-7/12 bg-white p-6 rounded-2xl shadow-lg border border-slate-100 min-h-[500px] flex flex-col relative">
                 <h2 class="text-xl font-bold text-slate-700 mb-4 text-center">檢驗結果與 3D 視角</h2>
-                <!-- 操作提示 -->
                 <div class="absolute top-4 left-4 right-4 flex justify-between pointer-events-none opacity-50 text-sm font-bold text-slate-400">
                     <span>左鍵：旋轉視角</span>
                     <span>右鍵：平移畫布</span>
@@ -215,10 +245,8 @@
         </div>
     </div>
 
-
     <!-- ==================== 對戰模式 ==================== -->
     <div id="versusMode" class="page-section flex-col h-screen max-h-screen bg-slate-900 text-white overflow-hidden">
-        <!-- 頂部資訊列 -->
         <div class="bg-slate-800 border-b border-slate-700 px-4 py-2 flex justify-between items-center shadow-lg z-20 shrink-0">
             <button onclick="forceEndVersus()" class="text-slate-400 hover:text-white font-bold px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition text-sm">
                 <i class="fa-solid fa-arrow-left mr-2"></i>結束
@@ -229,41 +257,32 @@
             <div class="w-[80px]"></div>
         </div>
 
-        <!-- 遊戲主畫面 -->
         <div id="versusPanels" class="flex-1 flex flex-row w-full p-1 md:p-2 gap-1 md:gap-2 bg-slate-950 overflow-hidden">
-            
-            <!-- P1 Panel -->
+            <!-- P1, P2, P3, P4 面板相同... -->
             <div id="panel-p1" class="hidden flex-1 flex-col bg-slate-800 rounded-xl border-t-[8px] border-blue-500 overflow-hidden relative shadow-lg">
-                <!-- 上方區塊：分數 + 圖鑑 (置頂不壓縮) -->
                 <div class="flex flex-col shrink-0 border-b border-slate-700 bg-slate-900/40 pb-2">
                     <div class="bg-blue-900/20 w-full flex flex-row justify-between items-center px-3 py-2">
                         <div class="flex items-center"><i class="fa-solid fa-user-astronaut text-xl md:text-2xl text-blue-400 mr-2 drop-shadow-md"></i><h2 class="text-xs md:text-sm font-bold text-blue-300">玩家 1</h2></div>
                         <div class="text-2xl md:text-3xl font-black text-blue-400 leading-none"><span id="score-p1">0</span><span class="text-xs text-blue-500/50">/11</span></div>
                     </div>
-                    <!-- 解鎖的圖鑑，緊湊排列 -->
                     <div class="px-2 pt-2 flex flex-wrap justify-center content-start gap-1 md:gap-1.5" id="locks-p1"></div>
                 </div>
 
-                <!-- 中間區塊：置中放大方格 (flex-1 讓它佔滿剩餘空間並置中) -->
                 <div class="flex-1 flex flex-col items-center justify-center p-2 relative">
                     <div class="text-slate-400 font-bold mb-2 text-xs md:text-sm">已選: <span id="count-p1" class="text-blue-300">0</span>/6</div>
-                    <!-- 放大的 Grid，並強制保持正方形比例 -->
                     <div id="grid-p1" class="grid grid-cols-6 gap-[2px] w-[95%] max-w-[280px] aspect-square mx-auto mb-4"></div>
-                    <!-- 放大的按鈕區 -->
                     <div class="flex gap-2 w-[95%] max-w-[280px]">
                         <button onclick="clearGridVersus(1)" class="flex-1 bg-slate-700 hover:bg-slate-600 py-3 rounded-lg text-sm font-bold text-slate-300 transition-colors shadow-sm"><i class="fa-solid fa-eraser"></i></button>
                         <button onclick="checkNetVersus(1)" class="flex-[2] bg-blue-600 hover:bg-blue-500 py-3 rounded-lg text-sm md:text-base font-bold text-white shadow-[0_0_8px_rgba(37,99,235,0.4)] transition-colors"><i class="fa-solid fa-check"></i> 送出</button>
                     </div>
                 </div>
-                <!-- 提示訊息 -->
                 <div id="toast-p1" class="toast bg-slate-800 border-2 text-white px-4 py-3 rounded-xl shadow-2xl flex flex-col items-center"><i id="toastIcon-p1" class="text-2xl mb-1"></i><h3 id="toastTitle-p1" class="text-sm md:text-lg font-black whitespace-nowrap"></h3></div>
             </div>
 
-            <!-- P2 Panel -->
             <div id="panel-p2" class="hidden flex-1 flex-col bg-slate-800 rounded-xl border-t-[8px] border-rose-500 overflow-hidden relative shadow-lg">
                 <div class="flex flex-col shrink-0 border-b border-slate-700 bg-slate-900/40 pb-2">
                     <div class="bg-rose-900/20 w-full flex flex-row justify-between items-center px-3 py-2">
-                        <div class="flex items-center"><i class="fa-solid fa-user-ninja text-xl md:text-2xl text-rose-400 mr-2 drop-shadow-md"></i><h2 class="text-xs md:text-sm font-bold text-rose-300">玩家 2</h2></div>
+                        <div class="flex items-center"><i id="p2-icon" class="fa-solid fa-user-ninja text-xl md:text-2xl text-rose-400 mr-2 drop-shadow-md"></i><h2 id="p2-name" class="text-xs md:text-sm font-bold text-rose-300">玩家 2</h2></div>
                         <div class="text-2xl md:text-3xl font-black text-rose-400 leading-none"><span id="score-p2">0</span><span class="text-xs text-rose-500/50">/11</span></div>
                     </div>
                     <div class="px-2 pt-2 flex flex-wrap justify-center content-start gap-1 md:gap-1.5" id="locks-p2"></div>
@@ -273,14 +292,13 @@
                     <div class="text-slate-400 font-bold mb-2 text-xs md:text-sm">已選: <span id="count-p2" class="text-rose-300">0</span>/6</div>
                     <div id="grid-p2" class="grid grid-cols-6 gap-[2px] w-[95%] max-w-[280px] aspect-square mx-auto mb-4"></div>
                     <div class="flex gap-2 w-[95%] max-w-[280px]">
-                        <button onclick="clearGridVersus(2)" class="flex-1 bg-slate-700 hover:bg-slate-600 py-3 rounded-lg text-sm font-bold text-slate-300 transition-colors shadow-sm"><i class="fa-solid fa-eraser"></i></button>
-                        <button onclick="checkNetVersus(2)" class="flex-[2] bg-rose-600 hover:bg-rose-500 py-3 rounded-lg text-sm md:text-base font-bold text-white shadow-[0_0_8px_rgba(225,29,72,0.4)] transition-colors"><i class="fa-solid fa-check"></i> 送出</button>
+                        <button id="btn-clear-p2" onclick="clearGridVersus(2)" class="flex-1 bg-slate-700 hover:bg-slate-600 py-3 rounded-lg text-sm font-bold text-slate-300 transition-colors shadow-sm"><i class="fa-solid fa-eraser"></i></button>
+                        <button id="btn-submit-p2" onclick="checkNetVersus(2)" class="flex-[2] bg-rose-600 hover:bg-rose-500 py-3 rounded-lg text-sm md:text-base font-bold text-white shadow-[0_0_8px_rgba(225,29,72,0.4)] transition-all duration-100"><i class="fa-solid fa-check"></i> 送出</button>
                     </div>
                 </div>
                 <div id="toast-p2" class="toast bg-slate-800 border-2 text-white px-4 py-3 rounded-xl shadow-2xl flex flex-col items-center"><i id="toastIcon-p2" class="text-2xl mb-1"></i><h3 id="toastTitle-p2" class="text-sm md:text-lg font-black whitespace-nowrap"></h3></div>
             </div>
 
-            <!-- P3 Panel -->
             <div id="panel-p3" class="hidden flex-1 flex-col bg-slate-800 rounded-xl border-t-[8px] border-emerald-500 overflow-hidden relative shadow-lg">
                 <div class="flex flex-col shrink-0 border-b border-slate-700 bg-slate-900/40 pb-2">
                     <div class="bg-emerald-900/20 w-full flex flex-row justify-between items-center px-3 py-2">
@@ -301,7 +319,6 @@
                 <div id="toast-p3" class="toast bg-slate-800 border-2 text-white px-4 py-3 rounded-xl shadow-2xl flex flex-col items-center"><i id="toastIcon-p3" class="text-2xl mb-1"></i><h3 id="toastTitle-p3" class="text-sm md:text-lg font-black whitespace-nowrap"></h3></div>
             </div>
 
-            <!-- P4 Panel -->
             <div id="panel-p4" class="hidden flex-1 flex-col bg-slate-800 rounded-xl border-t-[8px] border-amber-500 overflow-hidden relative shadow-lg">
                 <div class="flex flex-col shrink-0 border-b border-slate-700 bg-slate-900/40 pb-2">
                     <div class="bg-amber-900/20 w-full flex flex-row justify-between items-center px-3 py-2">
@@ -326,11 +343,16 @@
     </div>
 
     <!-- 對戰結束 Modal -->
-    <div id="vsGameOverModal" class="fixed inset-0 z-[60] bg-slate-900/90 hidden flex-col items-center justify-center backdrop-blur-md">
-        <div class="bg-white p-10 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] max-w-2xl w-full text-center mx-4">
+    <div id="vsGameOverModal" class="fixed inset-0 z-[60] bg-slate-900/90 hidden flex-col items-center justify-center backdrop-blur-md overflow-y-auto">
+        <div class="bg-white p-10 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] max-w-2xl w-full text-center mx-4 my-8 relative">
             <i class="fa-solid fa-trophy text-7xl text-amber-500 mb-6 drop-shadow-md"></i>
             <h2 class="text-5xl font-black text-slate-800 mb-2">時間到！</h2>
-            <h3 id="vsWinnerTitle" class="text-4xl font-bold mb-8 text-rose-600"></h3>
+            <h3 id="vsWinnerTitle" class="text-4xl font-bold mb-6 text-rose-600"></h3>
+            
+            <!-- 新解鎖提示區塊 -->
+            <div id="vsUnlockMessage" class="hidden mb-6">
+                <!-- JS動態生成內容 -->
+            </div>
             
             <div id="vsScoreBoard" class="flex flex-wrap justify-center gap-4 mb-10">
                 <!-- 動態注入分數 -->
@@ -344,8 +366,13 @@
 
     <!-- ==================== JavaScript ==================== -->
     <script>
+        // ================= 解鎖系統狀態 =================
+        let unlockedPro = localStorage.getItem('cube_pro_unlocked') === 'true';
+        let unlockedGod = localStorage.getItem('cube_god_unlocked') === 'true';
+
         // ================= 核心邏輯與判定 =================
         const GRID_SIZE = 6;
+        
         const baseNetsCoords = [
             [[1,0], [0,1],[1,1],[2,1],[3,1], [1,2]], [[0,0], [0,1],[1,1],[2,1],[3,1], [0,2]], 
             [[1,0], [0,1],[1,1],[2,1],[3,1], [0,2]], [[2,0], [0,1],[1,1],[2,1],[3,1], [0,2]], 
@@ -353,6 +380,15 @@
             [[0,0],[1,0], [1,1],[2,1],[3,1], [3,2]], [[0,0],[1,0], [1,1],[2,1],[3,1], [2,2]], 
             [[0,0],[1,0], [1,1],[2,1],[3,1], [1,2]], [[0,0],[1,0], [1,1],[2,1], [2,2],[3,2]], 
             [[0,0],[1,0],[2,0], [2,1],[3,1],[4,1]]   
+        ];
+
+        const invalidBaseNetsCoords = [
+            [[0,0],[1,0],[2,0],[0,1],[1,1],[2,1]], 
+            [[0,0],[1,0],[2,0],[3,0],[4,0],[5,0]], 
+            [[0,0],[0,1],[0,2],[1,2],[2,2],[2,1]], 
+            [[0,0],[1,0],[0,1],[1,1],[2,0],[3,0]], 
+            [[0,0],[1,0],[2,0],[3,0],[4,0],[2,1]], 
+            [[0,0],[0,1],[0,2],[0,3],[1,3],[2,3]]  
         ];
 
         function getCanonicalStr(pts) {
@@ -446,12 +482,9 @@
         }
 
         function generateExactNetHTML(cells, p) {
-            let minX = Math.min(...cells.map(c => c.x));
-            let maxX = Math.max(...cells.map(c => c.x));
-            let minY = Math.min(...cells.map(c => c.y));
-            let maxY = Math.max(...cells.map(c => c.y));
-            let w = maxX - minX + 1;
-            let h = maxY - minY + 1;
+            let minX = Math.min(...cells.map(c => c.x)), maxX = Math.max(...cells.map(c => c.x));
+            let minY = Math.min(...cells.map(c => c.y)), maxY = Math.max(...cells.map(c => c.y));
+            let w = maxX - minX + 1, h = maxY - minY + 1;
             
             const pColor = {
                 'single': 'bg-indigo-500 shadow-[0_0_4px_rgba(99,102,241,0.6)]',
@@ -462,16 +495,16 @@
                 4: 'bg-amber-400 shadow-[0_0_5px_rgba(245,158,11,0.8)]'
             }[p] || 'bg-slate-400';
 
-            let html = `<div class="flex items-center justify-center w-full h-full p-1"><div class="grid gap-[1px]" style="grid-template-columns: repeat(${w}, 1fr); grid-template-rows: repeat(${h}, 1fr); width: 100%; aspect-ratio: ${w}/${h}; max-height: 100%; max-width: 100%;">`;
+            let sizingStyle = w >= h ? 'width: 100%; height: auto;' : 'height: 100%; width: auto;';
+
+            let html = `<div class="flex items-center justify-center w-full h-full p-[2px] overflow-hidden">
+                <div class="grid gap-[1px]" style="grid-template-columns: repeat(${w}, 1fr); grid-template-rows: repeat(${h}, 1fr); aspect-ratio: ${w}/${h}; ${sizingStyle} max-width: 100%; max-height: 100%;">`;
 
             for(let y = minY; y <= maxY; y++) {
                 for(let x = minX; x <= maxX; x++) {
                     let isCell = cells.some(c => c.x===x && c.y===y);
-                    if(isCell) {
-                        html += `<div class="${pColor} rounded-[1px] md:rounded-sm"></div>`;
-                    } else {
-                        html += `<div class="opacity-0"></div>`;
-                    }
+                    if(isCell) html += `<div class="${pColor} rounded-[1px] md:rounded-sm" style="aspect-ratio: 1/1;"></div>`;
+                    else html += `<div class="opacity-0" style="aspect-ratio: 1/1;"></div>`;
                 }
             }
             html += `</div></div>`;
@@ -549,12 +582,8 @@
                 document.getElementById('resultTitle').innerText = '失敗';
                 document.getElementById('resultDesc').innerText = res.reason;
                 
-                if (res.tree && res.tree.length === 6) {
-                    build3D(res.tree, false); 
-                } else {
-                    document.getElementById('cubeScene').style.display = 'none';
-                    document.getElementById('actionButtons').classList.add('hidden');
-                }
+                if (res.tree && res.tree.length === 6) build3D(res.tree, false); 
+                else { document.getElementById('cubeScene').style.display = 'none'; document.getElementById('actionButtons').classList.add('hidden'); }
             } else {
                 if (singleUnlocked[res.matchIndex]) {
                     rb.classList.add('bg-indigo-100', 'text-indigo-800', 'border-indigo-200');
@@ -613,11 +642,8 @@
         }
 
         // ================= 3D 構建與互動 =================
-        let isRotating3D = false;
-        let isPanning3D = false;
-        let prevX, prevY;
-        let rotX = -25, rotY = 45;
-        let panX = 0, panY = 0;
+        let isRotating3D = false; let isPanning3D = false;
+        let prevX, prevY; let rotX = -25, rotY = 45; let panX = 0, panY = 0;
 
         function build3D(treeNodes, isValid = true) {
             document.getElementById('cubeScene').style.display = 'flex';
@@ -679,16 +705,42 @@
             }
         });
 
-        // ================= 多人對戰模式 =================
+        // ================= 多人對戰與 CPU 模式 =================
         let vsPlayerCount = 2;
         let vsTimeLimit = 180;
         let vsTimer = 0;
         let vsInterval = null;
         let vsState = {};
+        
+        let selectedCpuDifficulty = 'BB';
+        let cpuStepTimeouts = [];
+        let lastProMistakeTime = 0; 
+
+        function resetLocks() {
+            if(confirm('確定要清除所有 CPU 難度的解鎖進度嗎？')) {
+                unlockedPro = false;
+                unlockedGod = false;
+                localStorage.removeItem('cube_pro_unlocked');
+                localStorage.removeItem('cube_god_unlocked');
+                if(selectedCpuDifficulty === '高手' || selectedCpuDifficulty === '無敵') {
+                    selectedCpuDifficulty = 'BB';
+                }
+                renderCpuButtons();
+                selectCpuDifficulty(selectedCpuDifficulty); // 強制更新樣式
+            }
+        }
+
+        function renderCpuButtons() {
+            document.getElementById('lock-pro').style.display = unlockedPro ? 'none' : 'flex';
+            document.getElementById('lock-god').style.display = unlockedGod ? 'none' : 'flex';
+        }
 
         function openMultiplayerSetup() {
-            selectPlayerCount(2); 
+            renderCpuButtons();
+            selectPlayerCount(1); 
+            selectCpuDifficulty(selectedCpuDifficulty); // 重置為先前的選項
             document.getElementById('setupModal').classList.replace('hidden', 'flex');
+            document.getElementById('cpuUnlockHint').classList.add('hidden');
         }
         function closeMultiplayerSetup() {
             document.getElementById('setupModal').classList.replace('flex', 'hidden');
@@ -696,9 +748,45 @@
 
         function selectPlayerCount(count) {
             vsPlayerCount = count;
-            [2, 3, 4].forEach(n => {
+            [1, 2, 3, 4].forEach(n => {
                 const btn = document.getElementById(`btn-p${n}`);
                 if(n === count) {
+                    btn.classList.replace('border-slate-200', 'border-rose-500');
+                    btn.classList.replace('text-slate-600', 'text-rose-700');
+                    btn.classList.add('bg-rose-50');
+                } else {
+                    btn.classList.replace('border-rose-500', 'border-slate-200');
+                    btn.classList.replace('text-rose-700', 'text-slate-600');
+                    btn.classList.remove('bg-rose-50');
+                }
+            });
+            
+            const cpuContainer = document.getElementById('cpuDifficultyContainer');
+            if (count === 1) cpuContainer.classList.remove('hidden');
+            else cpuContainer.classList.add('hidden');
+        }
+        
+        function selectCpuDifficulty(level) {
+            const hint = document.getElementById('cpuUnlockHint');
+            hint.classList.add('hidden');
+
+            // 檢查解鎖條件
+            if (level === '高手' && !unlockedPro) {
+                hint.innerHTML = '<i class="fa-solid fa-lock mr-1"></i> 需在單人對戰戰勝「智者」才能解鎖「高手」！';
+                hint.classList.remove('hidden');
+                return;
+            }
+            if (level === '無敵' && !unlockedGod) {
+                hint.innerHTML = '<i class="fa-solid fa-lock mr-1"></i> 需在單人對戰戰勝「高手」才能解鎖「無敵」！';
+                hint.classList.remove('hidden');
+                return;
+            }
+
+            selectedCpuDifficulty = level;
+            ['BB', '學童', '智者', '高手', '無敵'].forEach(lvl => {
+                const btnMap = { 'BB': 'btn-cpu-BB', '學童': 'btn-cpu-student', '智者': 'btn-cpu-wise', '高手': 'btn-cpu-pro', '無敵': 'btn-cpu-god' };
+                const btn = document.getElementById(btnMap[lvl]);
+                if (lvl === level) {
                     btn.classList.replace('border-slate-200', 'border-rose-500');
                     btn.classList.replace('text-slate-600', 'text-rose-700');
                     btn.classList.add('bg-rose-50');
@@ -715,10 +803,23 @@
             closeMultiplayerSetup();
             switchPage('versusMode');
             
+            let activePanels = (vsPlayerCount === 1) ? 2 : vsPlayerCount;
             vsState = {};
+            lastProMistakeTime = Date.now(); 
+
+            if (vsPlayerCount === 1) {
+                document.getElementById('p2-name').innerText = `電腦 (${selectedCpuDifficulty})`;
+                document.getElementById('p2-icon').className = "fa-solid fa-robot text-xl md:text-2xl text-rose-400 mr-2 drop-shadow-md";
+                document.getElementById('panel-p2').style.pointerEvents = 'none'; 
+            } else {
+                document.getElementById('p2-name').innerText = "玩家 2";
+                document.getElementById('p2-icon').className = "fa-solid fa-user-ninja text-xl md:text-2xl text-rose-400 mr-2 drop-shadow-md";
+                document.getElementById('panel-p2').style.pointerEvents = 'auto';
+            }
+
             for(let p=1; p<=4; p++) {
                 const panel = document.getElementById(`panel-p${p}`);
-                if (p <= vsPlayerCount) {
+                if (p <= activePanels) {
                     panel.classList.remove('hidden');
                     panel.classList.add('flex');
                     vsState[p] = { selected: new Set(), unlocked: new Array(11).fill(false), score: 0 };
@@ -735,9 +836,135 @@
             vsInterval = setInterval(() => {
                 vsTimer--;
                 updateVsTimer();
-                if(vsTimer <= 0) endVersusGame();
+                if(vsTimer <= 0) forceEndVersus();
             }, 1000);
+
+            if (vsPlayerCount === 1) {
+                clearCpuTimeouts();
+                cpuStepTimeouts.push(setTimeout(playCPUMove, 1000));
+            }
         }
+
+        // ================= 電腦 (CPU) 模擬邏輯 =================
+        function clearCpuTimeouts() {
+            cpuStepTimeouts.forEach(t => clearTimeout(t));
+            cpuStepTimeouts = [];
+        }
+
+        function sleepCPU(ms) {
+            return new Promise(resolve => {
+                const t = setTimeout(resolve, ms);
+                cpuStepTimeouts.push(t);
+            });
+        }
+
+        const cpuDifficultyParams = {
+            'BB': { startDelay: ()=>600+Math.random()*600, clickInterval: ()=>500+Math.random()*300, submitDelay: 800, nextRoundDelay: ()=>2000+Math.random()*1500, mistakeRate: 0.20, shouldSubmitWrong: ()=>Math.random()<0.40 },
+            '學童': { startDelay: ()=>500+Math.random()*400, clickInterval: ()=>400+Math.random()*200, submitDelay: 600, nextRoundDelay: ()=>1600+Math.random()*900, mistakeRate: 0.15, shouldSubmitWrong: ()=>Math.random()<0.25 },
+            '智者': { startDelay: ()=>400+Math.random()*300, clickInterval: ()=>300+Math.random()*200, submitDelay: 450, nextRoundDelay: ()=>1300+Math.random()*700, mistakeRate: 0.10, shouldSubmitWrong: ()=>Math.random()<0.10 },
+            '高手': { startDelay: ()=>300+Math.random()*300, clickInterval: ()=>200+Math.random()*200, submitDelay: 300, nextRoundDelay: ()=>1000+Math.random()*800, mistakeRate: 0.05, shouldSubmitWrong: () => {
+                if (Date.now() - lastProMistakeTime >= 60000) { if (Math.random() < 0.25) { lastProMistakeTime = Date.now(); return true; } } return false;
+            }},
+            '無敵': { startDelay: ()=>100+Math.random()*200, clickInterval: ()=>50+Math.random()*150, submitDelay: 100, nextRoundDelay: ()=>700+Math.random()*400, mistakeRate: 0.00, shouldSubmitWrong: ()=>Math.random()<0.001 }
+        };
+
+        function orderCoordsForCPU(coords) {
+            let ordered = [], visited = new Set(), queue = [coords[0]];
+            visited.add(`${coords[0].x},${coords[0].y}`);
+            while(queue.length > 0) {
+                let curr = queue.shift(); ordered.push(curr);
+                coords.forEach(p => {
+                    let key = `${p.x},${p.y}`;
+                    if (!visited.has(key) && (Math.abs(p.x - curr.x) + Math.abs(p.y - curr.y) === 1)) { 
+                        visited.add(key); queue.push(p);
+                    }
+                });
+            }
+            if(ordered.length < coords.length) { coords.forEach(p => { if(!visited.has(`${p.x},${p.y}`)) ordered.push(p); }); }
+            return ordered;
+        }
+
+        async function playCPUMove() {
+            if (vsTimer <= 0 || vsState[2].score >= 11) return;
+            
+            let st = vsState[2], missing = [];
+            for(let i=0; i<11; i++) if(!st.unlocked[i]) missing.push(i);
+            if(missing.length === 0) return;
+            
+            let params = cpuDifficultyParams[selectedCpuDifficulty];
+            let isWrongSubmit = params.shouldSubmitWrong();
+            let shape;
+            
+            if (isWrongSubmit) {
+                let targetIdx = Math.floor(Math.random() * invalidBaseNetsCoords.length);
+                let rot = [0, 90, 180, 270][Math.floor(Math.random()*4)], flip = Math.random() > 0.5;
+                shape = invalidBaseNetsCoords[targetIdx].map(p => applyTransform(p[0], p[1], rot, flip));
+            } else {
+                let targetIdx = missing[Math.floor(Math.random() * missing.length)];
+                let rot = [0, 90, 180, 270][Math.floor(Math.random()*4)], flip = Math.random() > 0.5;
+                shape = baseNetsCoords[targetIdx].map(p => applyTransform(p[0], p[1], rot, flip));
+            }
+            
+            let minX = Math.min(...shape.map(p=>p.x)), maxX = Math.max(...shape.map(p=>p.x));
+            let minY = Math.min(...shape.map(p=>p.y)), maxY = Math.max(...shape.map(p=>p.y));
+            let maxOffsetX = 5 - (maxX - minX), maxOffsetY = 5 - (maxY - minY);
+            let offsetX = Math.floor(Math.random() * (maxOffsetX + 1)) - minX;
+            let offsetY = Math.floor(Math.random() * (maxOffsetY + 1)) - minY;
+            
+            let finalCoords = shape.map(p => ({x: p.x + offsetX, y: p.y + offsetY}));
+            let orderedCoords = orderCoordsForCPU(finalCoords);
+            
+            let actions = [];
+            let finalSet = new Set(finalCoords.map(p => `${p.x},${p.y}`));
+
+            for (let i = 0; i < orderedCoords.length; i++) {
+                let p = orderedCoords[i];
+                if (Math.random() < params.mistakeRate) {
+                    let candidates = [{dx:0,dy:-1},{dx:0,dy:1},{dx:-1,dy:0},{dx:1,dy:0}].map(m => ({x:p.x+m.dx, y:p.y+m.dy})).filter(c => c.x>=0 && c.x<6 && c.y>=0 && c.y<6 && !finalSet.has(`${c.x},${c.y}`));
+                    if (candidates.length > 0) {
+                        let wrongP = candidates[Math.floor(Math.random() * candidates.length)];
+                        actions.push({ x: wrongP.x, y: wrongP.y, isMistake: true }); 
+                        actions.push({ x: wrongP.x, y: wrongP.y, isUndo: true });    
+                    }
+                }
+                actions.push({ x: p.x, y: p.y, isNormal: true }); 
+            }
+
+            await sleepCPU(params.startDelay());
+            if (vsTimer <= 0) return;
+
+            clearGridVersus(2);
+            await sleepCPU(params.clickInterval());
+            
+            for (let i = 0; i < actions.length; i++) {
+                if (vsTimer <= 0) return;
+                let act = actions[i];
+                let cell = document.querySelector(`#grid-p2 .grid-cell[data-x="${act.x}"][data-y="${act.y}"]`);
+                if (cell) toggleVersusCell(2, act.x, act.y, cell);
+                
+                let delay = params.clickInterval();
+                if (act.isMistake) delay *= 1.8; 
+                if (act.isUndo) delay *= 0.8;    
+                await sleepCPU(delay);
+            }
+
+            if (vsTimer > 0) {
+                await sleepCPU(params.submitDelay);
+                if (vsTimer <= 0) return;
+                const submitBtn = document.getElementById('btn-submit-p2');
+                submitBtn.classList.add('sim-active-btn');
+                await sleepCPU(150);
+                submitBtn.classList.remove('sim-active-btn');
+                checkNetVersus(2);
+            }
+
+            if (vsTimer > 0 && vsState[2].score < 11) {
+                await sleepCPU(params.nextRoundDelay());
+                playCPUMove();
+            }
+        }
+
+        // =======================================================
 
         function initVersusGrid(p) {
             document.getElementById(`score-p${p}`).innerText = '0';
@@ -749,7 +976,6 @@
             for (let y = 0; y < GRID_SIZE; y++) {
                 for (let x = 0; x < GRID_SIZE; x++) {
                     const cell = document.createElement('div');
-                    // 放大網格預設字體
                     cell.className = 'grid-cell bg-slate-700 border border-slate-600 rounded-sm cursor-pointer text-slate-300 flex items-center justify-center text-sm md:text-xl font-black transition-colors';
                     cell.dataset.x = x; cell.dataset.y = y;
                     cell.onclick = () => toggleVersusCell(p, x, y, cell);
@@ -757,7 +983,6 @@
                 }
             }
             
-            // 緊湊的頂部圖鑑鎖頭
             for(let i=0; i<11; i++){
                 const l = document.createElement('div');
                 l.id = `lock-p${p}-${i}`;
@@ -790,6 +1015,7 @@
         }
 
         function clearGridVersus(p) {
+            if (!vsState[p]) return;
             vsState[p].selected.clear();
             document.getElementById(`count-p${p}`).innerText = '0';
             document.querySelectorAll(`#grid-p${p} .grid-cell`).forEach(c => {
@@ -813,13 +1039,7 @@
                     document.getElementById(`score-p${p}`).innerText = st.score;
                     
                     const lock = document.getElementById(`lock-p${p}-${res.matchIndex}`);
-                    
-                    const pColors = {
-                        1: 'bg-blue-900/40 border-blue-500',
-                        2: 'bg-rose-900/40 border-rose-500',
-                        3: 'bg-emerald-900/40 border-emerald-500',
-                        4: 'bg-amber-900/40 border-amber-500'
-                    };
+                    const pColors = { 1: 'bg-blue-900/40 border-blue-500', 2: 'bg-rose-900/40 border-rose-500', 3: 'bg-emerald-900/40 border-emerald-500', 4: 'bg-amber-900/40 border-amber-500' };
                     
                     lock.className = `w-7 h-7 md:w-9 md:h-9 rounded border flex items-center justify-center mini-lock animate-pop shadow-[0_0_8px_currentColor] opacity-100 ${pColors[p]}`;
                     lock.innerHTML = generateExactNetHTML(res.cells, p);
@@ -852,40 +1072,80 @@
             const s = (vsTimer % 60).toString().padStart(2, '0');
             const display = document.getElementById('vsTimerDisplay');
             display.innerText = `${m}:${s}`;
-            if(vsTimer <= 10) display.classList.add('text-rose-500', 'animate-pulse');
+            if(vsTimer <= 10 && vsTimer > 0) display.classList.add('text-rose-500', 'animate-pulse');
             else display.classList.remove('text-rose-500', 'animate-pulse');
         }
 
         function forceEndVersus() {
-            clearInterval(vsInterval);
             vsTimer = 0;
+            updateVsTimer();
+            clearInterval(vsInterval);
+            clearCpuTimeouts(); 
             endVersusGame();
         }
 
         function endVersusGame() {
-            clearInterval(vsInterval);
             let maxScore = -1;
             let winners = [];
             const board = document.getElementById('vsScoreBoard');
             board.innerHTML = '';
             const colors = ['blue', 'rose', 'emerald', 'amber'];
+            let activePanels = (vsPlayerCount === 1) ? 2 : vsPlayerCount;
             
-            for(let p=1; p<=vsPlayerCount; p++) {
+            for(let p=1; p<=activePanels; p++) {
                 const s = vsState[p].score;
                 if(s > maxScore) { maxScore = s; winners = [p]; }
                 else if(s === maxScore) { winners.push(p); }
                 
+                let pName = (vsPlayerCount === 1 && p === 2) ? `電腦 (${selectedCpuDifficulty})` : `玩家 ${p}`;
+                
                 board.innerHTML += `
-                    <div class="bg-${colors[p-1]}-50 border-2 border-${colors[p-1]}-200 rounded-2xl p-6 w-32 md:w-40 text-center">
-                        <div class="text-${colors[p-1]}-600 font-bold mb-2">玩家 ${p}</div>
+                    <div class="bg-${colors[p-1]}-50 border-2 border-${colors[p-1]}-200 rounded-2xl p-6 w-36 md:w-40 text-center flex flex-col items-center">
+                        <div class="text-${colors[p-1]}-600 font-bold mb-2 text-sm md:text-base">${pName}</div>
                         <div class="text-5xl font-black text-${colors[p-1]}-700">${s}</div>
                     </div>
                 `;
             }
 
             const title = document.getElementById('vsWinnerTitle');
-            if(winners.length > 1) title.innerHTML = '<span class="text-amber-500">平手！實力相當！</span>';
-            else title.innerHTML = `<span class="text-${colors[winners[0]-1]}-600">玩家 ${winners[0]} 獲勝！</span>`;
+            let isP1SoloWinner = false;
+
+            if(winners.length > 1) {
+                title.innerHTML = '<span class="text-amber-500">平手！實力相當！</span>';
+            } else {
+                let winnerName = (vsPlayerCount === 1 && winners[0] === 2) ? `電腦 (${selectedCpuDifficulty})` : `玩家 ${winners[0]}`;
+                title.innerHTML = `<span class="text-${colors[winners[0]-1]}-600">${winnerName} 獲勝！</span>`;
+                if(vsPlayerCount === 1 && winners[0] === 1) isP1SoloWinner = true;
+            }
+
+            // ---------- 處理難度解鎖邏輯 ----------
+            let newlyUnlocked = '';
+            const unlockMsg = document.getElementById('vsUnlockMessage');
+            
+            if (isP1SoloWinner) {
+                if (selectedCpuDifficulty === '智者' && !unlockedPro) {
+                    unlockedPro = true;
+                    localStorage.setItem('cube_pro_unlocked', 'true');
+                    newlyUnlocked = '高手';
+                } else if (selectedCpuDifficulty === '高手' && !unlockedGod) {
+                    unlockedGod = true;
+                    localStorage.setItem('cube_god_unlocked', 'true');
+                    newlyUnlocked = '無敵';
+                }
+            }
+
+            if (newlyUnlocked) {
+                unlockMsg.innerHTML = `
+                    <div class="bg-gradient-to-r from-amber-100 to-yellow-50 border-2 border-amber-400 text-amber-800 px-6 py-4 rounded-xl font-bold animate-bounce shadow-lg">
+                        <i class="fa-solid fa-unlock-keyhole text-2xl mr-2 text-amber-500"></i> 
+                        <span class="text-xl">恭喜！解鎖新對戰難度：<span class="text-rose-600 font-black">${newlyUnlocked}</span>！</span>
+                    </div>
+                `;
+                unlockMsg.classList.remove('hidden');
+            } else {
+                unlockMsg.classList.add('hidden');
+            }
+            // --------------------------------------
 
             document.getElementById('vsGameOverModal').classList.replace('hidden', 'flex');
         }
