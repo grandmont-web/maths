@@ -66,7 +66,7 @@
         .toast { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.5); opacity: 0; pointer-events: none; transition: all 0.2s ease-out; z-index: 50; }
         .toast.show { transform: translate(-50%, -50%) scale(1); opacity: 1; }
         
-        /* 無限專屬特效 */
+        /* 錦泰專屬特效 */
         .shura-glow { box-shadow: 0 0 15px rgba(147, 51, 234, 0.4); }
     </style>
 </head>
@@ -142,9 +142,9 @@
                     </button>
                 </div>
                 
-                <!-- 新增：無限級別 (100% 寬度) -->
-                <button onclick="selectCpuDifficulty('無限')" id="btn-cpu-shura" class="w-full cpu-btn border-2 border-slate-200 text-slate-600 py-3 rounded-xl font-black transition-all text-sm md:text-base relative overflow-hidden group shadow-sm hover:shadow-md flex items-center justify-center">
-                    <span class="btn-text flex items-center justify-center w-full">無限 <i class="fa-solid fa-skull text-purple-600 ml-2 text-lg"></i></span>
+                <!-- 新增：錦泰級別 (100% 寬度) -->
+                <button onclick="selectCpuDifficulty('錦泰')" id="btn-cpu-shura" class="w-full cpu-btn border-2 border-slate-200 text-slate-600 py-3 rounded-xl font-black transition-all text-sm md:text-base relative overflow-hidden group shadow-sm hover:shadow-md flex items-center justify-center">
+                    <span class="btn-text flex items-center justify-center w-full">錦泰 <i class="fa-solid fa-skull text-purple-600 ml-2 text-lg"></i></span>
                     <div id="lock-shura" class="absolute inset-0 bg-slate-200/95 flex flex-col items-center justify-center text-slate-500 backdrop-blur-[2px] transition-opacity">
                         <span class="flex items-center text-sm font-bold tracking-widest"><i class="fa-solid fa-lock mr-2 text-purple-500"></i> 極限挑戰封印中</span>
                     </div>
@@ -741,7 +741,7 @@
                 localStorage.removeItem('cube_god_unlocked');
                 localStorage.removeItem('cube_shura_unlocked');
                 
-                if(selectedCpuDifficulty === '高手' || selectedCpuDifficulty === '無敵' || selectedCpuDifficulty === '無限') {
+                if(selectedCpuDifficulty === '高手' || selectedCpuDifficulty === '無敵' || selectedCpuDifficulty === '錦泰') {
                     selectedCpuDifficulty = 'BB';
                 }
                 renderCpuButtons();
@@ -801,19 +801,19 @@
                 hint.classList.remove('hidden');
                 return;
             }
-            if (level === '無限' && !unlockedShura) {
+            if (level === '錦泰' && !unlockedShura) {
                 hint.innerHTML = '<i class="fa-solid fa-lock mr-1"></i> 需與「無敵」級別進行一場對戰（不論輸贏）才能解除封印！';
                 hint.classList.remove('hidden');
                 return;
             }
 
             selectedCpuDifficulty = level;
-            const btnMap = { 'BB': 'btn-cpu-BB', '學童': 'btn-cpu-student', '智者': 'btn-cpu-wise', '高手': 'btn-cpu-pro', '無敵': 'btn-cpu-god', '無限': 'btn-cpu-shura' };
+            const btnMap = { 'BB': 'btn-cpu-BB', '學童': 'btn-cpu-student', '智者': 'btn-cpu-wise', '高手': 'btn-cpu-pro', '無敵': 'btn-cpu-god', '錦泰': 'btn-cpu-shura' };
             
             Object.keys(btnMap).forEach(lvl => {
                 const btn = document.getElementById(btnMap[lvl]);
                 if (lvl === level) {
-                    if (level === '無限') {
+                    if (level === '錦泰') {
                         btn.classList.replace('border-slate-200', 'border-purple-600');
                         btn.classList.replace('text-slate-600', 'text-purple-700');
                         btn.classList.add('bg-purple-100', 'shura-glow');
@@ -823,7 +823,7 @@
                         btn.classList.add('bg-rose-50');
                     }
                 } else {
-                    if (lvl === '無限') {
+                    if (lvl === '錦泰') {
                         btn.classList.replace('border-purple-600', 'border-slate-200');
                         btn.classList.replace('text-purple-700', 'text-slate-600');
                         btn.classList.remove('bg-purple-100', 'shura-glow');
@@ -846,12 +846,12 @@
             lastProMistakeTime = Date.now(); 
 
             if (vsPlayerCount === 1) {
-                let cpuIcon = selectedCpuDifficulty === '無限' ? "fa-solid fa-skull text-purple-400" : "fa-solid fa-robot text-rose-400";
+                let cpuIcon = selectedCpuDifficulty === '錦泰' ? "fa-solid fa-skull text-purple-400" : "fa-solid fa-robot text-rose-400";
                 document.getElementById('p2-name').innerText = `電腦 (${selectedCpuDifficulty})`;
                 document.getElementById('p2-icon').className = `${cpuIcon} text-xl md:text-2xl mr-2 drop-shadow-md`;
                 document.getElementById('panel-p2').style.pointerEvents = 'none'; 
                 
-                if(selectedCpuDifficulty === '無限') {
+                if(selectedCpuDifficulty === '錦泰') {
                     document.getElementById('panel-p2').classList.replace('border-rose-500', 'border-purple-600');
                 } else {
                     document.getElementById('panel-p2').classList.replace('border-purple-600', 'border-rose-500');
@@ -912,7 +912,7 @@
                 if (Date.now() - lastProMistakeTime >= 60000) { if (Math.random() < 0.25) { lastProMistakeTime = Date.now(); return true; } } return false;
             }},
             '無敵': { startDelay: ()=>100+Math.random()*200, clickInterval: ()=>50+Math.random()*150, submitDelay: 100, nextRoundDelay: ()=>700+Math.random()*400, mistakeRate: 0.00, shouldSubmitWrong: ()=>Math.random()<0.001 },
-            '無限': { startDelay: ()=>30, clickInterval: ()=>15, submitDelay: 30, nextRoundDelay: ()=>250, mistakeRate: 0.00, shouldSubmitWrong: ()=>false } // 怪物級別參數
+            '錦泰': { startDelay: ()=>30, clickInterval: ()=>15, submitDelay: 30, nextRoundDelay: ()=>250, mistakeRate: 0.00, shouldSubmitWrong: ()=>false } // 怪物級別參數
         };
 
         function orderCoordsForCPU(coords) {
@@ -1001,7 +1001,7 @@
                 const submitBtn = document.getElementById('btn-submit-p2');
                 submitBtn.classList.add('sim-active-btn');
                 
-                let btnDelay = selectedCpuDifficulty === '無限' ? 50 : 150;
+                let btnDelay = selectedCpuDifficulty === '錦泰' ? 50 : 150;
                 await sleepCPU(btnDelay);
                 
                 submitBtn.classList.remove('sim-active-btn');
@@ -1054,12 +1054,12 @@
                 st.selected.add(key);
                 
                 let activeClass = `active-p${p}`;
-                if (p === 2 && vsPlayerCount === 1 && selectedCpuDifficulty === '無限') {
+                if (p === 2 && vsPlayerCount === 1 && selectedCpuDifficulty === '錦泰') {
                     activeClass = 'bg-purple-600 !important border-purple-500 !important text-white !important box-shadow: inset 0 0 8px rgba(0,0,0,0.3);';
                 }
                 
                 cell.className = `grid-cell ${activeClass} rounded-sm cursor-pointer flex items-center justify-center text-sm md:text-xl font-black transition-colors`;
-                if(p === 2 && selectedCpuDifficulty === '無限') {
+                if(p === 2 && selectedCpuDifficulty === '錦泰') {
                     cell.style.backgroundColor = '#9333ea'; cell.style.borderColor = '#7e22ce'; cell.style.color = 'white';
                 }
             }
@@ -1101,12 +1101,12 @@
                     const lock = document.getElementById(`lock-p${p}-${res.matchIndex}`);
                     let pColorClass = { 1: 'bg-blue-900/40 border-blue-500', 2: 'bg-rose-900/40 border-rose-500', 3: 'bg-emerald-900/40 border-emerald-500', 4: 'bg-amber-900/40 border-amber-500' }[p];
                     
-                    if (p === 2 && vsPlayerCount === 1 && selectedCpuDifficulty === '無限') {
+                    if (p === 2 && vsPlayerCount === 1 && selectedCpuDifficulty === '錦泰') {
                         pColorClass = 'bg-purple-900/40 border-purple-500';
                     }
                     
                     lock.className = `w-7 h-7 md:w-9 md:h-9 rounded border flex items-center justify-center mini-lock animate-pop shadow-[0_0_8px_currentColor] opacity-100 ${pColorClass}`;
-                    lock.innerHTML = generateExactNetHTML(res.cells, p === 2 && selectedCpuDifficulty === '無限' ? 'single' /* reuse deep blue for shura */ : p);
+                    lock.innerHTML = generateExactNetHTML(res.cells, p === 2 && selectedCpuDifficulty === '錦泰' ? 'single' /* reuse deep blue for shura */ : p);
                     
                     showToast(p, 'success', '解鎖成功！+1');
                     setTimeout(() => clearGridVersus(p), 300); 
@@ -1164,7 +1164,7 @@
                 
                 let pName = (vsPlayerCount === 1 && p === 2) ? `電腦 (${selectedCpuDifficulty})` : `玩家 ${p}`;
                 let colorClass = colors[p-1];
-                if (p === 2 && vsPlayerCount === 1 && selectedCpuDifficulty === '無限') colorClass = 'purple';
+                if (p === 2 && vsPlayerCount === 1 && selectedCpuDifficulty === '錦泰') colorClass = 'purple';
                 
                 board.innerHTML += `
                     <div class="bg-${colorClass}-50 border-2 border-${colorClass}-200 rounded-2xl p-6 w-36 md:w-40 text-center flex flex-col items-center">
@@ -1182,7 +1182,7 @@
             } else {
                 let winnerName = (vsPlayerCount === 1 && winners[0] === 2) ? `電腦 (${selectedCpuDifficulty})` : `玩家 ${winners[0]}`;
                 let titleColor = colors[winners[0]-1];
-                if (winners[0] === 2 && vsPlayerCount === 1 && selectedCpuDifficulty === '無限') titleColor = 'purple';
+                if (winners[0] === 2 && vsPlayerCount === 1 && selectedCpuDifficulty === '錦泰') titleColor = 'purple';
                 
                 title.innerHTML = `<span class="text-${titleColor}-600">${winnerName} 獲勝！</span>`;
                 if(vsPlayerCount === 1 && winners[0] === 1) isP1SoloWinner = true;
@@ -1210,17 +1210,17 @@
                 if (selectedCpuDifficulty === '無敵' && !unlockedShura) {
                     unlockedShura = true;
                     localStorage.setItem('cube_shura_unlocked', 'true');
-                    newlyUnlocked = '無限'; // 即使輸了也會解鎖，且覆蓋其他提示優先權
+                    newlyUnlocked = '錦泰'; // 即使輸了也會解鎖，且覆蓋其他提示優先權
                 }
             }
 
             if (newlyUnlocked) {
-                let glowColor = newlyUnlocked === '無限' ? 'purple' : 'amber';
-                let textColors = newlyUnlocked === '無限' ? 'purple' : 'rose';
+                let glowColor = newlyUnlocked === '錦泰' ? 'purple' : 'amber';
+                let textColors = newlyUnlocked === '錦泰' ? 'purple' : 'rose';
                 
                 unlockMsg.innerHTML = `
                     <div class="bg-gradient-to-r from-${glowColor}-100 to-${glowColor}-50 border-2 border-${glowColor}-400 text-${glowColor}-800 px-6 py-4 rounded-xl font-bold animate-bounce shadow-[0_0_15px_rgba(147,51,234,0.3)]">
-                        <i class="fa-solid ${newlyUnlocked === '無限' ? 'fa-skull' : 'fa-unlock-keyhole'} text-2xl mr-2 text-${glowColor}-500"></i> 
+                        <i class="fa-solid ${newlyUnlocked === '錦泰' ? 'fa-skull' : 'fa-unlock-keyhole'} text-2xl mr-2 text-${glowColor}-500"></i> 
                         <span class="text-xl">恭喜！解鎖新對戰難度：<span class="text-${textColors}-600 font-black">${newlyUnlocked}</span>！</span>
                     </div>
                 `;
