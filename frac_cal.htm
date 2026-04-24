@@ -90,7 +90,7 @@
 
         <!-- Virtual Keyboard Toggle -->
         <div class="flex justify-end mt-2 w-full">
-            <button onclick="toggleKeyboard()" class="flex items-center space-x-2 text-indigo-700 bg-indigo-100 hover:bg-indigo-200 px-4 py-2 rounded-xl font-bold transition shadow-sm">
+            <button type="button" onclick="toggleKeyboard()" class="flex items-center space-x-2 text-indigo-700 bg-indigo-100 hover:bg-indigo-200 px-4 py-2 rounded-xl font-bold transition shadow-sm">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 8h.01"/><path d="M14 8h.01"/><path d="M18 8h.01"/><path d="M6 8h.01"/><path d="M10 12h.01"/><path d="M14 12h.01"/><path d="M18 12h.01"/><path d="M6 12h.01"/><path d="M10 16h4"/><rect width="20" height="16" x="2" y="4" rx="2"/></svg>
                 <span id="kb-toggle-text">開啟虛擬鍵盤</span>
             </button>
@@ -99,36 +99,36 @@
         <!-- Virtual Keyboard -->
         <div id="virtual-keyboard" class="hidden grid grid-cols-4 gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-200 shadow-inner mt-4">
             <!-- Row 1 -->
-            <button class="v-btn bg-white hover:bg-gray-100 text-gray-800" onclick="processKey('7')">7</button>
-            <button class="v-btn bg-white hover:bg-gray-100 text-gray-800" onclick="processKey('8')">8</button>
-            <button class="v-btn bg-white hover:bg-gray-100 text-gray-800" onclick="processKey('9')">9</button>
-            <button class="v-btn bg-indigo-100 text-indigo-700 hover:bg-indigo-200 text-2xl" onclick="processKey('/')">÷</button>
+            <button type="button" class="v-btn bg-white hover:bg-gray-100 text-gray-800" onclick="processKey('7')">7</button>
+            <button type="button" class="v-btn bg-white hover:bg-gray-100 text-gray-800" onclick="processKey('8')">8</button>
+            <button type="button" class="v-btn bg-white hover:bg-gray-100 text-gray-800" onclick="processKey('9')">9</button>
+            <button type="button" class="v-btn bg-indigo-100 text-indigo-700 hover:bg-indigo-200 text-2xl" onclick="processKey('/')">÷</button>
             <!-- Row 2 -->
-            <button class="v-btn bg-white hover:bg-gray-100 text-gray-800" onclick="processKey('4')">4</button>
-            <button class="v-btn bg-white hover:bg-gray-100 text-gray-800" onclick="processKey('5')">5</button>
-            <button class="v-btn bg-white hover:bg-gray-100 text-gray-800" onclick="processKey('6')">6</button>
-            <button class="v-btn bg-indigo-100 text-indigo-700 hover:bg-indigo-200 text-2xl" onclick="processKey('*')">×</button>
+            <button type="button" class="v-btn bg-white hover:bg-gray-100 text-gray-800" onclick="processKey('4')">4</button>
+            <button type="button" class="v-btn bg-white hover:bg-gray-100 text-gray-800" onclick="processKey('5')">5</button>
+            <button type="button" class="v-btn bg-white hover:bg-gray-100 text-gray-800" onclick="processKey('6')">6</button>
+            <button type="button" class="v-btn bg-indigo-100 text-indigo-700 hover:bg-indigo-200 text-2xl" onclick="processKey('*')">×</button>
             <!-- Row 3 -->
-            <button class="v-btn bg-white hover:bg-gray-100 text-gray-800" onclick="processKey('1')">1</button>
-            <button class="v-btn bg-white hover:bg-gray-100 text-gray-800" onclick="processKey('2')">2</button>
-            <button class="v-btn bg-white hover:bg-gray-100 text-gray-800" onclick="processKey('3')">3</button>
-            <button class="v-btn bg-indigo-100 text-indigo-700 hover:bg-indigo-200 text-3xl" onclick="processKey('-')">-</button>
+            <button type="button" class="v-btn bg-white hover:bg-gray-100 text-gray-800" onclick="processKey('1')">1</button>
+            <button type="button" class="v-btn bg-white hover:bg-gray-100 text-gray-800" onclick="processKey('2')">2</button>
+            <button type="button" class="v-btn bg-white hover:bg-gray-100 text-gray-800" onclick="processKey('3')">3</button>
+            <button type="button" class="v-btn bg-indigo-100 text-indigo-700 hover:bg-indigo-200 text-3xl" onclick="processKey('-')">-</button>
             <!-- Row 4 -->
-            <button class="v-btn bg-white hover:bg-gray-100 text-gray-800" onclick="processKey('0')">0</button>
-            <button class="v-btn bg-gray-200 hover:bg-gray-300 text-gray-800" onclick="processKey('(')">(</button>
-            <button class="v-btn bg-gray-200 hover:bg-gray-300 text-gray-800" onclick="processKey(')')">)</button>
-            <button class="v-btn bg-indigo-100 text-indigo-700 hover:bg-indigo-200 text-2xl" onclick="processKey('+')">+</button>
+            <button type="button" class="v-btn bg-white hover:bg-gray-100 text-gray-800" onclick="processKey('0')">0</button>
+            <button type="button" class="v-btn bg-gray-200 hover:bg-gray-300 text-gray-800" onclick="processKey('(')">(</button>
+            <button type="button" class="v-btn bg-gray-200 hover:bg-gray-300 text-gray-800" onclick="processKey(')')">)</button>
+            <button type="button" class="v-btn bg-indigo-100 text-indigo-700 hover:bg-indigo-200 text-2xl" onclick="processKey('+')">+</button>
             <!-- Row 5 (Special actions) -->
-            <button class="v-btn bg-blue-100 text-blue-800 hover:bg-blue-200 col-span-2 text-lg" onclick="processKey('ArrowLeft')">← 準備輸分母</button>
-            <button class="v-btn bg-blue-100 text-blue-800 hover:bg-blue-200 col-span-2 text-lg" onclick="processKey('ArrowDown')">↓ 準備輸分子</button>
+            <button type="button" class="v-btn bg-blue-100 text-blue-800 hover:bg-blue-200 col-span-2 text-lg" onclick="processKey('ArrowLeft')">← 準備輸分母</button>
+            <button type="button" class="v-btn bg-blue-100 text-blue-800 hover:bg-blue-200 col-span-2 text-lg" onclick="processKey('ArrowDown')">↓ 準備輸分子</button>
             <!-- Row 6 -->
-            <button class="v-btn bg-red-100 text-red-700 hover:bg-red-200 col-span-2" onclick="processKey('Backspace')">⌫ 退位刪除</button>
-            <button class="v-btn bg-green-500 text-white hover:bg-green-600 col-span-2 shadow-green-300" onclick="processKey('Enter')">= 顯示答案</button>
+            <button type="button" class="v-btn bg-red-100 text-red-700 hover:bg-red-200 col-span-2" onclick="processKey('Backspace')">⌫ 退位刪除</button>
+            <button type="button" class="v-btn bg-green-500 text-white hover:bg-green-600 col-span-2 shadow-green-300" onclick="processKey('Enter')">= 顯示答案</button>
         </div>
         
         <!-- Controls -->
         <div class="flex justify-center mt-6">
-            <button onclick="processKey('Escape')" class="text-gray-500 hover:text-red-500 underline text-sm transition font-medium">
+            <button type="button" onclick="processKey('Escape')" class="text-gray-500 hover:text-red-500 underline text-sm transition font-medium">
                 全部重新計算 (Esc)
             </button>
         </div>
@@ -239,7 +239,7 @@
         document.addEventListener('keydown', (e) => {
             const allowedKeys = ['0','1','2','3','4','5','6','7','8','9','+','-','*','/','(',')','ArrowLeft','ArrowDown','Enter','=','Escape','Backspace'];
             if (allowedKeys.includes(e.key)) {
-                if(e.key === 'ArrowDown' || e.key === 'ArrowLeft') e.preventDefault(); // 防止畫面捲動
+                e.preventDefault(); // 攔截預設行為，防止 Enter 意外提交表單或重新整理頁面
                 processKey(e.key);
             }
         });
