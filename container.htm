@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D 空間與體積互動教學</title>
+    <style>
+        :root {
+            --primary: #4F46E5; /* 靛藍色 */
+            --primary-hover: #4338CA;
+            --bg-color: #F3F4F6;
+            --panel-bg: rgba(255, 255, 255, 0.85);
+            --text-main: #1F2937;
+            --text-muted: #6B7280;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+        }
+
+        /* 毛玻璃控制面板 */
+        #ui-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0,0,0,0.05);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            width: 340px;
+            z-index: 10;
+            box-sizing: border-box;
+            transition: transform 0.3s ease;
+            max-height: calc(100vh - 40px); /* 限制最大高度 */
+            overflow-y: auto; /* 加入垂直滾動條 */
+        }
+
+        /* 自訂滾動條樣式 */
+        #ui-panel::-webkit-scrollbar {
+            width: 6px;
+        }
+        #ui-panel::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        #ui-panel::-webkit-scrollbar-thumb {
+            background: rgba(79, 70, 229, 0.3);
+            border-radius: 10px;
+        }
+        #ui-panel::-webkit-scrollbar-thumb:hover {
+            background: rgba(79, 70, 229, 0.6);
+        }
+
+        h2 { 
+            margin-top: 0; 
+            color: var(--primary); 
+            font-size: 1.4rem; 
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 2px solid #EEF2FF;
+            padding-bottom: 12px;
+            margin-bottom: 20px;
+        }
+
+        .control-group { 
+            margin-bottom: 18px; 
+        }
+
+        label { 
+            display: flex; 
+            justify-content: space-between;
+            margin-bottom: 8px; 
+            font-weight: 600; 
+            font-size: 0.95rem; 
+            color: #374151;
+        }
+
+        .value-badge { 
+            background: var(--primary);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
+        }
+
+        /* 美化滑桿 */
+        input[type="range"] { 
+            width: 100%; 
+            -webkit-appearance: none;
+            background: transparent;
+            cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            background: #E5E7EB;
+            border-radius: 3px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: var(--primary);
+            margin-top: -6px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: transform 0.1s;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .divider {
+            height: 1px;
+            background: #E5E7EB;
+            margin: 20px 0;
+        }
+
+        /* 新增：按鈕樣式 */
+        .action-btn {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.05rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 6px rgba(79, 70, 229, 0.2);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 15px;
+        }
+        .action-btn:hover { background-color: var(--primary-hover); transform: translateY(-1px); }
+        .action-btn:disabled { background-color: #9CA3AF; cursor: not-allowed; transform: none; }
+
+        /* 算式區域美化 */
+        #math-output {
+            background: #EEF2FF;
+            border: 1px solid #C7D2FE;
+            border-radius: 12px;
+            padding: 16px;
+            font-size: 1rem;
+            line-height: 1.7;
+            color: #374151;
+            display: none; /* 初始隱藏公式 */
+        }
+
+        .math-step {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px dashed #C7D2FE;
+            padding: 4px 0;
+        }
+        .math-step:last-child {
+            border-bottom: none;
+        }
+
+        .math-result { 
+            font-weight: bold; 
+            color: var(--primary); 
+            font-size: 1.25rem; 
+            text-align: center;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 2px solid #C7D2FE;
+            background: #E0E7FF;
+            border-radius: 8px;
+            padding-bottom: 12px;
+        }
+
+        #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
+        
+        /* 教學小提示 */
+        .hint {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-align: center;
+            margin-top: 15px;
+            font-style: italic;
+        }
+    </style>
+    <!-- 引入 Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+
+    <div id="ui-panel">
+        <h2>📦 空間與體積探索</h2>
+        
+        <div class="control-group">
+            <label>容器長度 (L) <span class="value-badge" id="valL">10</span></label>
+            <input type="range" id="inputL" min="1" max="15" value="10">
+        </div>
+        <div class="control-group">
+            <label>容器寬度 (W) <span class="value-badge" id="valW">8</span></label>
+            <input type="range" id="inputW" min="1" max="15" value="8">
+        </div>
+        <div class="control-group">
+            <label>容器高度 (H) <span class="value-badge" id="valH">6</span></label>
+            <input type="range" id="inputH" min="1" max="15" value="6">
+        </div>
+        
+        <div class="divider"></div>
+        
+        <div class="control-group">
+            <label>小正方體邊長 <span class="value-badge" id="valS" style="background:#059669;">2</span></label>
+            <input type="range" id="inputS" min="1" max="5" value="2">
+        </div>
+
+        <button id="fillBtn" class="action-btn">▶ 開始自動填滿</button>
+
+        <div id="math-output">
+            <!-- 算式將在此動態生成 -->
+        </div>
+        
+        <div class="hint">💡 提示：按住滑鼠左鍵可旋轉視角，滾輪可縮放</div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <script>
+        // --- 1. 初始化 Three.js 場景設定 ---
+        const scene = new THREE.Scene();
+        // 加入柔和的背景漸層感 (透過霧化效果)
+        scene.background = new THREE.Color('#F9FAFB');
+        scene.fog = new THREE.Fog('#F9FAFB', 20, 100);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(25, 25, 35);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+
+        // --- 2. 建立燈光與環境 ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+        
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(20, 30, 20);
+        scene.add(directionalLight);
+
+        // 建立無限延伸的地板
+        const floorGeo = new THREE.PlaneGeometry(200, 200);
+        const floorMat = new THREE.MeshStandardMaterial({ 
+            color: '#ffffff',
+            roughness: 0.8,
+            metalness: 0.1
+        });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = 0; // 地板在 Y=0
+        scene.add(floor);
+
+        // 建立群組以便管理動態生成的物件
+        let containerGroup = new THREE.Group();
+        scene.add(containerGroup);
+        let cubesGroup = new THREE.Group();
+        scene.add(cubesGroup);
+        let labelsGroup = new THREE.Group();
+        scene.add(labelsGroup);
+
+        // --- 新增：動畫狀態變數 ---
+        let isAnimating = false;
+        let animationQueue = [];
+        let currentAnimationTimer = null;
+
+        // 釋放記憶體輔助函數
+        function clearGroup(group) {
+            while(group.children.length > 0){ 
+                let obj = group.children[0];
+                group.remove(obj); 
+                if(obj.geometry) obj.geometry.dispose();
+                if(obj.material) {
+                    if(Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+                    else obj.material.dispose();
+                }
+            }
+        }
+
+        // 建立 2D 文字標籤的輔助函數
+        function createLabel(text) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 128;
+            const context = canvas.getContext('2d');
+            context.font = 'Bold 36px sans-serif';
+            context.fillStyle = '#4F46E5'; // 靛藍色
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+            // 加上白色邊框讓字體更清晰
+            context.strokeStyle = 'white';
+            context.lineWidth = 5;
+            context.strokeText(text, 128, 64);
+            context.fillText(text, 128, 64);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            // 停用深度測試(depthTest)讓標籤不會被玻璃容器遮擋
+            const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
+            const sprite = new THREE.Sprite(material);
+            sprite.scale.set(4, 2, 1);
+            return sprite;
+        }
+
+        // --- 3. 核心邏輯與畫面更新函數 ---
+        function updateScene() {
+            // 重置動畫狀態
+            if (currentAnimationTimer) clearTimeout(currentAnimationTimer);
+            isAnimating = false;
+            const btn = document.getElementById('fillBtn');
+            if (btn) {
+                btn.innerHTML = '▶ 開始自動填滿';
+                btn.disabled = false;
+            }
+
+            const L = parseInt(document.getElementById('inputL').value);
+            const W = parseInt(document.getElementById('inputW').value);
+            const H = parseInt(document.getElementById('inputH').value);
+            const S = parseInt(document.getElementById('inputS').value);
+
+            // 更新 UI 數字
+            document.getElementById('valL').innerText = L;
+            document.getElementById('valW').innerText = W;
+            document.getElementById('valH').innerText = H;
+            document.getElementById('valS').innerText = S;
+
+            // 計算數量
+            const numL = Math.floor(L / S);
+            const numW = Math.floor(W / S);
+            const numH = Math.floor(H / S);
+            const totalCubes = numL * numW * numH;
+
+            // 準備動畫佇列 (按照 長->闊->高 的邏輯順序)
+            animationQueue = [];
+            for (let j = 0; j < numH; j++) {       // 高 (層)
+                for (let k = 0; k < numW; k++) {   // 闊 (排)
+                    for (let i = 0; i < numL; i++) { // 長 (列)
+                        const posX = i * S + S/2;
+                        const posY = j * S + S/2;
+                        const posZ = k * S + S/2;
+                        animationQueue.push({ x: posX, y: posY, z: posZ });
+                    }
+                }
+            }
+
+            // 更新數學算式顯示 (加入動態計數器)
+            const mathHTML = `
+                <div style="font-weight:bold; margin-bottom:10px;">📐 空間分配計算：</div>
+                <div class="math-step"><span>長度可放：</span> <span>${L} ÷ ${S} = <strong>${numL}</strong></span></div>
+                <div class="math-step"><span>寬度可放：</span> <span>${W} ÷ ${S} = <strong>${numW}</strong></span></div>
+                <div class="math-step"><span>高度可放：</span> <span>${H} ÷ ${S} = <strong>${numH}</strong></span></div>
+                
+                <div class="math-result">
+                    <div style="font-size:0.9rem; color:#6B7280; font-weight:normal; margin-bottom:4px;">目前填入 / 總共可盛載</div>
+                    <span id="current-count" style="font-size:1.6rem; color:#059669;">0</span> / ${totalCubes} <span style="font-size:1rem;">(個)</span>
+                    <div style="margin-top:12px; font-size:1.05rem; color:#4F46E5; padding-top: 10px; border-top: 1px dashed #C7D2FE;">
+                        <strong>綜合算式：</strong><br>
+                        (${L} ÷ ${S}) × (${W} ÷ ${S}) × (${H} ÷ ${S}) = ${totalCubes}
+                    </div>
+                </div>
+            `;
+            document.getElementById('math-output').innerHTML = mathHTML;
+            document.getElementById('math-output').style.display = 'none'; // 拉動滑桿時隱藏公式
+
+            // 清除舊的 3D 物件
+            clearGroup(containerGroup);
+            clearGroup(cubesGroup);
+            clearGroup(labelsGroup);
+
+            // --- 繪製美化的玻璃容器 ---
+            const geometryBox = new THREE.BoxGeometry(L, H, W);
+            
+            // 1. 容器的「實體玻璃面」(使用半透明物理材質，無網格線)
+            const glassMaterial = new THREE.MeshPhysicalMaterial({
+                color: 0xffffff,
+                metalness: 0.1,
+                roughness: 0.1,
+                transparent: true,
+                opacity: 0.15,
+                side: THREE.DoubleSide,
+                depthWrite: false // 防止透明排序問題
+            });
+            const glassMesh = new THREE.Mesh(geometryBox, glassMaterial);
+            
+            // 2. 容器的「乾淨邊框線」(完美解決對角線問題)
+            const edgesGeo = new THREE.EdgesGeometry(geometryBox);
+            const lineMaterial = new THREE.LineBasicMaterial({ 
+                color: 0x4F46E5, 
+                linewidth: 2 
+            });
+            const lineMesh = new THREE.LineSegments(edgesGeo, lineMaterial);
+
+            // 將玻璃面和邊框加入群組
+            containerGroup.add(glassMesh);
+            containerGroup.add(lineMesh);
+            
+            // 將容器中心點移至適當位置 (確保底部貼齊地板 Y=0)
+            containerGroup.position.set(L/2, H/2, W/2);
+
+            // --- 加上長、闊、高的文字標籤 ---
+            const labelL = createLabel('長: ' + L);
+            labelL.position.set(L / 2, -1, W + 0.5); // 放在底部前方
+            
+            const labelW = createLabel('闊: ' + W);
+            labelW.position.set(L + 0.5, -1, W / 2); // 放在底部右方
+            
+            const labelH = createLabel('高: ' + H);
+            labelH.position.set(L + 0.5, H / 2, W + 0.5); // 放在右前方
+
+            labelsGroup.add(labelL);
+            labelsGroup.add(labelW);
+            labelsGroup.add(labelH);
+
+            // --- 繪製分離的「範例小正方體」 (放在容器外) ---
+            const cubeGeo = new THREE.BoxGeometry(S, S, S);
+            const cubeEdges = new THREE.EdgesGeometry(cubeGeo);
+            const cubeLineMat = new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.5, transparent:true });
+            const materialSample = new THREE.MeshStandardMaterial({ color: '#10B981', roughness: 0.3, metalness: 0.1 }); // 使用綠色作區分
+            
+            const sampleCube = new THREE.Mesh(cubeGeo, materialSample);
+            const sampleLine = new THREE.LineSegments(cubeEdges, cubeLineMat);
+            sampleCube.add(sampleLine);
+            
+            // 放置在容器左側外部 (將距離拉得更遠)
+            const sampleX = -S/2 - 8;
+            sampleCube.position.set(sampleX, S/2, W/2);
+            labelsGroup.add(sampleCube);
+
+            const labelSample = createLabel('小正方體: ' + S);
+            labelSample.position.set(sampleX, S + 2, W/2);
+            labelsGroup.add(labelSample);
+            
+            // 調整視角中心至容器中心
+            controls.target.set(L/2, H/3, W/2);
+            controls.update();
+        }
+
+        // --- 4. 綁定事件監聽 ---
+        document.getElementById('inputL').addEventListener('input', updateScene);
+        document.getElementById('inputW').addEventListener('input', updateScene);
+        document.getElementById('inputH').addEventListener('input', updateScene);
+        document.getElementById('inputS').addEventListener('input', updateScene);
+
+        // --- 5. 自動填滿動畫邏輯 ---
+        document.getElementById('fillBtn').addEventListener('click', () => {
+            if (isAnimating) return; // 正在播放則忽略
+            
+            // 如果已經填滿了，先清空再重新開始
+            if (cubesGroup.children.length === animationQueue.length) {
+                clearGroup(cubesGroup);
+                document.getElementById('current-count').innerText = 0;
+            }
+
+            const total = animationQueue.length;
+            if (total === 0) return; // 容量為 0
+
+            isAnimating = true;
+            const btn = document.getElementById('fillBtn');
+            btn.innerHTML = '⏳ 填滿中...';
+            btn.disabled = true;
+
+            // 按下按鈕後才顯示公式
+            document.getElementById('math-output').style.display = 'block';
+
+            const S = parseInt(document.getElementById('inputS').value);
+            const cubeGeo = new THREE.BoxGeometry(S, S, S);
+            const cubeEdges = new THREE.EdgesGeometry(cubeGeo);
+            const cubeLineMat = new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.5, transparent:true });
+            const materialCube = new THREE.MeshStandardMaterial({ color: '#38BDF8', roughness: 0.3, metalness: 0.1 });
+
+            let currentIndex = cubesGroup.children.length;
+
+            function stepFill() {
+                if (!isAnimating) return; // 若中途拉動滑桿則停止動畫
+                
+                if (currentIndex >= total) {
+                    isAnimating = false;
+                    btn.innerHTML = '🔄 重新填滿';
+                    btn.disabled = false;
+                    return;
+                }
+
+                // 根據總數量動態調整每次添加的積木數量，確保動畫不會太久 (控制在 ~3 秒內完成)
+                let batchSize = 1;
+                if (total > 150) batchSize = Math.ceil(total / 150);
+
+                for (let b = 0; b < batchSize && currentIndex < total; b++) {
+                    const pos = animationQueue[currentIndex];
+                    const cube = new THREE.Mesh(cubeGeo, materialCube);
+                    const line = new THREE.LineSegments(cubeEdges, cubeLineMat);
+                    cube.add(line);
+                    cube.position.set(pos.x, pos.y, pos.z);
+                    cubesGroup.add(cube);
+                    currentIndex++;
+                }
+
+                // 更新 UI 的數量計數器
+                const counterEl = document.getElementById('current-count');
+                if (counterEl) counterEl.innerText = currentIndex;
+
+                // 繼續下一步
+                currentAnimationTimer = setTimeout(stepFill, 25);
+            }
+
+            stepFill(); // 啟動動畫
+        });
+
+        // 初始執行一次
+        updateScene();
+
+        // 動畫迴圈
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // 處理視窗縮放
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }, false);
+    </script>
+</body>
+</html>
